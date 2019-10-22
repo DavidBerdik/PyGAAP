@@ -7,7 +7,7 @@ def main():
 	logger = logging.getLogger(__name__)
 	
 	# TODO: A GUI-based version of PyGAAP. For now, it's all CLI.
-	logger.info("Testing PyGAAP logging")
+	logger.info("Starting CLI")
 
 if __name__=="__main__":
 	main()
