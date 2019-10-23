@@ -1,6 +1,6 @@
 import argparse, logging, sys
 
-from  backend.CSVIO import readCSV
+from  backend.CSVIO import readExperimentCSV
 
 def cliMain():
 	"""Main function for the PyGAAP CLI"""	
@@ -11,7 +11,7 @@ def cliMain():
 	
 	# If a CSV file has been specified, process it.
 	if args.experimentengine:
-		readCSV(args.experimentengine[0])
+		readExperimentCSV(args.experimentengine[0])
 
 def _parse_args(empty=False):
 	"""Parse command line arguments"""
