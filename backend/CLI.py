@@ -1,6 +1,6 @@
 import argparse, logging, sys
 
-from  backend.CSVIO import readExperimentCSV
+from backend.CSVIO import readExperimentCSV
 
 def cliMain():
 	"""Main function for the PyGAAP CLI"""	
