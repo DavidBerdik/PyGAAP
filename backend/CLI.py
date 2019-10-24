@@ -25,6 +25,12 @@ def cliMain():
 			docs = []
 			for entry in corpusEntries:
 				docs.append(Document(entry[0], readDocument(entry[1]), entry[2]))
+				
+			# Extract specified canonicizers, event drivers, analysis methods, and distance functions
+			canonicizers = exp[1].split('&') # More than one canonicizer can be separated in a &-delimited list.
+			eventDriver = exp[2]
+			analysisMethod = exp[3]
+			distanceFunc = exp[4]
 
 def _parse_args(empty=False):
 	"""Parse command line arguments"""
