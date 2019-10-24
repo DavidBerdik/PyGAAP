@@ -11,3 +11,7 @@ class EventDriver(ABC):
 	def createEventSet(self, procText):
 		'''Returns a list containing the resulting event set.'''
 		pass
+		
+	@abstractmethod
+	def setParams(self, params):
+		'''Accepts a list of parameters and assigns them to the appropriate variables.'''
