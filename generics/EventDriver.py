@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 # An abstract EventDriver class.
 class EventDriver(ABC):
 	@abstractmethod
-	def displayName(self):
+	def displayName():
 		'''Returns the display name for the given event driver.'''
 		pass
 		
@@ -28,7 +28,7 @@ class CharacterNGramEventDriver(EventDriver):
 		formattedOutput = [''.join(val) for val in nltkRawOutput]
 		return formattedOutput
 	
-	def displayName(self):
+	def displayName():
 		return "Character NGrams"
 	
 	def setParam(self, params):

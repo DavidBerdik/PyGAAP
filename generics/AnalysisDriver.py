@@ -13,6 +13,6 @@ class AnalysisDriver(ABC):
 		pass
 
 	@abstractmethod
-	def displayName(self):
+	def displayName():
 		'''Returns the display name for the given analysis method.'''
 		pass
