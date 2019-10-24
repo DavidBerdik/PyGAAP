@@ -1,4 +1,4 @@
-import csv
+import csv, pathlib
 
 def readCorpusCSV(csvPath):
 	'''Read the corpus csv at the given path in to a list of lists and return it.'''
@@ -16,3 +16,11 @@ def readExperimentCSV(csvPath):
 	# Remove the header entry from the list and return it.
 	del csvRows[0]
 	return csvRows
+	
+def findCorpusCSVPath(corpusCSVPathEntry):
+	'''Find the corpus CSV's path based on the experiment CSV's path entry.'''
+	return pathlib.Path(corpusCSVPathEntry).absolute()
+	
+def findDocumentPath(documentPathEntry):
+	'''Find the path of the specified document based on the document path entry.'''
+	return findCorpusCSVPath(documentPathEntry)
