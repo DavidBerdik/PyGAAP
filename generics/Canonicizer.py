@@ -11,3 +11,11 @@ class Canonicizer(ABC):
 	def displayName(self):
 		'''Returns the display name for the given canonicizer.'''
 		pass
+		
+class NormalizeWhitespace(Canonicizer):
+	def process(self, procText):
+		'''Convert procText in to a character list where all whitespace characters are the same.'''
+		return list(' '.join(procText.split()))
+
+	def displayName(self):
+		return "Normalize Whitespace"
