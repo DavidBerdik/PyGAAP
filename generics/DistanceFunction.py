@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 class DistanceFunction(ABC):
 	@abstractmethod
 	def distance(self, unknownHistogram, knownHistogram):
-	'''Input is the unknown and known histograms and output is the resulting distance calculation.'''
+		'''Input is the unknown and known histograms and output is the resulting distance calculation.'''
 		pass
 		
 	@abstractmethod

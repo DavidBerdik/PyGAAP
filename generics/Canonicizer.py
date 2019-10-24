@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 class Canonicizer(ABC):
 	@abstractmethod
 	def process(self, procText):
-	'''Input is original text and output is canonicized text in the form of a character list.'''
+		'''Input is original text and output is canonicized text in the form of a character list.'''
 		pass
 		
 	@abstractmethod
