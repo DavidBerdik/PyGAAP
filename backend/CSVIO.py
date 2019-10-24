@@ -1,4 +1,4 @@
-import csv, logging
+import csv
 
 def readCSV(csvPath):
 	'''Read the csv at the given path in to a list of lists and return it.'''
