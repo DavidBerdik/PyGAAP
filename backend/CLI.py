@@ -1,5 +1,6 @@
 import argparse, sys
 
+from backend.API import API
 from backend.CSVIO import *
 from backend.Document import Document
 
@@ -31,6 +32,9 @@ def cliMain():
 			eventDriver = exp[2]
 			analysisMethod = exp[3]
 			distanceFunc = exp[4]
+			
+			# Create the API object that will be used to actually run the experiment.
+			api = API()
 
 def _parse_args(empty=False):
 	"""Parse command line arguments"""
