@@ -24,3 +24,7 @@ def findCorpusCSVPath(corpusCSVPathEntry):
 def findDocumentPath(documentPathEntry):
 	'''Find the path of the specified document based on the document path entry.'''
 	return findCorpusCSVPath(documentPathEntry)
+	
+def readDocument(documentPath):
+	'''Returns the contents of the document at the specified path.'''
+	return pathlib.Path(documentPath).read_text()

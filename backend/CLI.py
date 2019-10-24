@@ -1,6 +1,7 @@
 import argparse, sys
 
 from backend.CSVIO import *
+from backend.Document import Document
 
 def cliMain():
 	"""Main function for the PyGAAP CLI"""	
@@ -19,6 +20,11 @@ def cliMain():
 		for exp in experiments:
 			# Get a list of entries in the specified corpus CSV.
 			corpusEntries = readCorpusCSV(findCorpusCSVPath(exp[-1]))
+			
+			# Build a list of Documents using the entries in corpusEntries.
+			docs = []
+			for entry in corpusEntries:
+				docs.append(Document(entry[0], readDocument(entry[1]), entry[2]))
 
 def _parse_args(empty=False):
 	"""Parse command line arguments"""
