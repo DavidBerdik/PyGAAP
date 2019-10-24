@@ -11,6 +11,6 @@ class Document:
 		self.title = title
 		self.text = text
 		
-	def setEventSet(self, eventSet)
+	def setEventSet(self, eventSet):
 		'''Sets the eventSet list value.'''
 		self.eventSet = eventSet
