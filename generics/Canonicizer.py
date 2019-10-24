@@ -8,7 +8,7 @@ class Canonicizer(ABC):
 		pass
 		
 	@abstractmethod
-	def displayName(self):
+	def displayName():
 		'''Returns the display name for the given canonicizer.'''
 		pass
 		
@@ -17,5 +17,5 @@ class NormalizeWhitespace(Canonicizer):
 		'''Convert procText in to a character list where all whitespace characters are the same.'''
 		return list(' '.join(procText.split()))
 
-	def displayName(self):
+	def displayName():
 		return "Normalize Whitespace"
