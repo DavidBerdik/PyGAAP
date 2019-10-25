@@ -9,8 +9,9 @@ class API:
 	eventDrivers = dict()
 	analysisMethods = dict()
 	distanceFunctions = dict()
+	documents = []
 	
-	def __init__(self):
+	def __init__(self, documents):
 		'''Build dictionaries of all the different parameters we can choose from.'''
 		# Populate dictionary of canonicizers.
 		for cls in Canonicizer.__subclasses__():
@@ -27,3 +28,6 @@ class API:
 		# Populate dictionary of analysis methods.
 		for cls in DistanceFunction.__subclasses__():
 			self.distanceFunctions[cls.displayName()] = cls
+			
+		# Set a list of documents for processing.
+		self.documents = documents

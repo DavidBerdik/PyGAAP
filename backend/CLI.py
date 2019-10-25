@@ -34,7 +34,7 @@ def cliMain():
 			distanceFunc = exp[4]
 			
 			# Create the API object that will be used to actually run the experiment.
-			api = API()
+			api = API(docs)
 
 def _parse_args(empty=False):
 	"""Parse command line arguments"""
