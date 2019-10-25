@@ -31,3 +31,9 @@ class API:
 			
 		# Set a list of documents for processing.
 		self.documents = documents
+		
+	def runCanonicizer(self, canonicizerString):
+		'''Runs the canonicizer specified by the string against all documents.'''
+		canonicizer = self.canonicizers.get(canonicizerString)()
+		for doc in self.documents:
+			doc.text = canonicizer.process(doc.text)

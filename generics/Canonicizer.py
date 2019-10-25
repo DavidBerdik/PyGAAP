@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 class Canonicizer(ABC):
 	@abstractmethod
 	def process(self, procText):
-		'''Input is original text and output is canonicized text in the form of a character list.'''
+		'''Input is original text and output is canonicized text.'''
 		pass
 		
 	@abstractmethod
@@ -14,8 +14,8 @@ class Canonicizer(ABC):
 		
 class NormalizeWhitespace(Canonicizer):
 	def process(self, procText):
-		'''Convert procText in to a character list where all whitespace characters are the same.'''
-		return list(' '.join(procText.split()))
+		'''Convert procText in to a string where all whitespace characters are the same.'''
+		return ' '.join(procText.split())
 
 	def displayName():
 		return "Normalize Whitespace"

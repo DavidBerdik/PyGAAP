@@ -35,6 +35,10 @@ def cliMain():
 			
 			# Create the API object that will be used to actually run the experiment.
 			api = API(docs)
+			
+			# Run each specified canonicizer against the documents in the API object.
+			for canonicizer in canonicizers:
+				api.runCanonicizer(canonicizer)
 
 def _parse_args(empty=False):
 	"""Parse command line arguments"""
