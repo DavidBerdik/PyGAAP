@@ -37,3 +37,17 @@ class API:
 		canonicizer = self.canonicizers.get(canonicizerString)()
 		for doc in self.documents:
 			doc.text = canonicizer.process(doc.text)
+			
+	def runEventDriver(self, eventDriverString):
+		'''Runs the event driver specified by the string against all documents.'''
+		eventDriver = self.eventDrivers.get(eventDriverString.split('|')[0])()
+		eventDriver.setParams(self._buildParamList(eventDriverString))
+		for doc in self.documents:
+			doc.setEventSet(eventDriver.createEventSet(doc.text))
+			
+	def _buildParamList(self, eventDriverString):
+		'''Builds and returns a list of parameter values that will be passed to an EventDriver.'''
+		eventDriverString = eventDriverString.split('|')[1:]
+		params = []
+		[params.append(int(param.split(':')[1])) for param in eventDriverString]
+		return params
