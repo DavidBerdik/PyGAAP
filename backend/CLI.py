@@ -40,7 +40,7 @@ def cliMain():
 			for canonicizer in canonicizers:
 				api.runCanonicizer(canonicizer)
 			
-			# Run the event set against the documents in the API object.
+			# Run the event driver against the documents in the API object.
 			api.runEventDriver(eventDriver)
 
 def _parse_args(empty=False):
