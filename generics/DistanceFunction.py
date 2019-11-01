@@ -13,6 +13,13 @@ class DistanceFunction(ABC):
 		'''Returns the display name for the given distance function.'''
 		pass
 		
+class BhattacharyyaDistance(DistanceFunction):
+	def distance(unknownHistogram, knownHistogram):
+		return distances.bhattacharyya(unknownHistogram, knownHistogram)
+		
+	def displayName():
+		return "Bhattacharyya Distance"
+		
 class HistogramDistance(DistanceFunction):
 	def distance(unknownHistogram, knownHistogram):
 		return distances.euclidean(unknownHistogram, knownHistogram)
