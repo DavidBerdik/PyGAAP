@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import dictances as distances
 
 # An abstract DistanceFunction class.
 class DistanceFunction(ABC):
@@ -11,3 +12,10 @@ class DistanceFunction(ABC):
 	def displayName():
 		'''Returns the display name for the given distance function.'''
 		pass
+		
+class HistogramDistance(DistanceFunction):
+	def distance(unknownHistogram, knownHistogram):
+		return distances.euclidean(unknownHistogram, knownHistogram)
+		
+	def displayName():
+		return "Histogram Distance"
