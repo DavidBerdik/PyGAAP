@@ -58,6 +58,13 @@ def generateKnownDocsMeanHistograms(histSet):
 		meanHists[author] = meanHist
 	return meanHists
 	
+def generateAbsoluteHistogram(document):
+	'''Returns an absolute histogram for a given document.'''
+	absHist = dict()
+	for event in document.eventSet:
+		absHist[event] = absHist.get(event, 0) + 1
+	return absHist
+	
 def normalizeHistogram(histogram):
 	'''Returns a normalized version of a given histogram.'''
 	normHist = dict()
