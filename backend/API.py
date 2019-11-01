@@ -25,7 +25,7 @@ class API:
 		for cls in AnalysisDriver.__subclasses__():
 			self.analysisMethods[cls.displayName()] = cls
 		
-		# Populate dictionary of analysis methods.
+		# Populate dictionary of distance functions.
 		for cls in DistanceFunction.__subclasses__():
 			self.distanceFunctions[cls.displayName()] = cls
 			
