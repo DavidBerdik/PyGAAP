@@ -45,6 +45,26 @@ class API:
 		for doc in self.documents:
 			doc.setEventSet(eventDriver.createEventSet(doc.text))
 			
+	def runAnalysis(self, analysisMethodString, distanceFunctionString):
+		'''Runs the specified analysis method with the specified distance function and returns the results.'''
+		analysis = self.analysisMethods.get(analysisMethodString)()
+		
+		# Set the distance function to be used by the analysis method.
+		analysis.setDistanceFunction(self.distanceFunctions.get(distanceFunctionString))
+		
+		# Identify the unknown document in the set of documents. The unknown document's author field will be an empty string.
+		unknownDoc = None
+		for document in self.documents:
+			if document.author == "":
+				unknownDoc = document
+				break
+		knownDocs = self.documents.copy()
+		knownDocs.remove(unknownDoc)
+		
+		# Use the analysis to train and return the results of performing the analysis.
+		analysis.train(knownDocs)
+		return unknownDoc, analysis.analyze(unknownDoc)
+			
 	def _buildParamList(self, eventDriverString):
 		'''Builds and returns a list of parameter values that will be passed to an EventDriver.'''
 		eventDriverString = eventDriverString.split('|')[1:]
