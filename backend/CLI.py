@@ -25,7 +25,7 @@ def cliMain():
 			# Build a list of Documents using the entries in corpusEntries.
 			docs = []
 			for entry in corpusEntries:
-				docs.append(Document(entry[0], entry[2], readDocument(entry[1])))
+				docs.append(Document(entry[0], entry[2], readDocument(entry[1]), findCorpusCSVPath(exp[-1])))
 				
 			# Extract specified canonicizers, event drivers, analysis methods, and distance functions
 			canonicizers = exp[1].split('&') # More than one canonicizer can be separated in a &-delimited list.
