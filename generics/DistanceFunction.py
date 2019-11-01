@@ -27,6 +27,13 @@ class ChiSquareDistance(DistanceFunction):
 	def displayName():
 		return "Chi Square Distance"
 		
+class CosineDistance(DistanceFunction):
+	def distance(unknownHistogram, knownHistogram):
+		return distances.cosine(unknownHistogram, knownHistogram)
+		
+	def displayName():
+		return "Cosine Distance"
+		
 class HistogramDistance(DistanceFunction):
 	def distance(unknownHistogram, knownHistogram):
 		return distances.euclidean(unknownHistogram, knownHistogram)
