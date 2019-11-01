@@ -1,1 +1,2 @@
 nltk
+https://github.com/DavidBerdik/dictances/releases/download/v1.5.0_chi_beta/dictances-1.5.0_chi_beta-py3-none-any.whl
