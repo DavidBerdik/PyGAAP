@@ -20,6 +20,13 @@ class BhattacharyyaDistance(DistanceFunction):
 	def displayName():
 		return "Bhattacharyya Distance"
 		
+class ChiSquareDistance(DistanceFunction):
+	def distance(unknownHistogram, knownHistogram):
+		return distances.chi_square(unknownHistogram, knownHistogram)
+		
+	def displayName():
+		return "Chi Square Distance"
+		
 class HistogramDistance(DistanceFunction):
 	def distance(unknownHistogram, knownHistogram):
 		return distances.euclidean(unknownHistogram, knownHistogram)
