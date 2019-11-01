@@ -19,6 +19,6 @@ class AnalysisDriver(ABC):
 		'''Returns the display name for the given analysis method.'''
 		pass
 		
-	def setDistanceFunction(self, distance)
+	def setDistanceFunction(self, distance):
 		'''Sets the distance function to be used by the analysis driver.'''
 		self.distance = distance
