@@ -5,7 +5,7 @@ from backend.CSVIO import *
 from backend.Document import Document
 
 def cliMain():
-	"""Main function for the PyGAAP CLI"""	
+	'''Main function for the PyGAAP CLI'''
 	if len(sys.argv) < 2:
 		_parse_args(True)
 		
