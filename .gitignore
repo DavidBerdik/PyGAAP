@@ -1,2 +1,5 @@
 # Ignore all __pycache__ directories
 **/__pycache__
+
+# Ignore the tmp directory (experiment outputs are stored in it)
+/tmp
