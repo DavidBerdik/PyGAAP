@@ -1,8 +1,9 @@
-import argparse, sys
+import argparse, os, sys
 
 from backend.API import API
 from backend.CSVIO import *
 from backend.Document import Document
+from pathlib import Path
 
 def cliMain():
 	'''Main function for the PyGAAP CLI'''
@@ -46,6 +47,11 @@ def cliMain():
 			# Run the analysis and get the results in a formatted string.
 			unknownDoc, results = api.runAnalysis(analysisMethod, distanceFunc)
 			formattedResults = api.prettyFormatResults(canonicizers, eventDriver, analysisMethod, distanceFunc, unknownDoc, results)
+			
+			# Create the directories that the results will be stored in.
+			outPath = os.path.join(Path.cwd(), "tmp", '&'.join(canonicizers).replace('|', '_').replace(':', '_'), eventDriver.replace('|', '_').replace(':', '_'), analysisMethod + '-' + distanceFunc)
+			if not os.path.exists(outPath):
+				os.makedirs(outPath)
 
 def _parse_args(empty=False):
 	"""Parse command line arguments"""
