@@ -4,6 +4,7 @@ from backend.API import API
 from backend.CSVIO import *
 from backend.Document import Document
 from pathlib import Path
+from time import time
 
 def cliMain():
 	'''Main function for the PyGAAP CLI'''
@@ -52,6 +53,9 @@ def cliMain():
 			outPath = os.path.join(Path.cwd(), "tmp", '&'.join(canonicizers).replace('|', '_').replace(':', '_'), eventDriver.replace('|', '_').replace(':', '_'), analysisMethod + '-' + distanceFunc)
 			if not os.path.exists(outPath):
 				os.makedirs(outPath)
+			expFile=open(os.path.join(outPath,str(int(time())) + ".txt"), 'w')
+			expFile.write(formattedResults)
+			expFile.close()
 
 def _parse_args(empty=False):
 	"""Parse command line arguments"""
