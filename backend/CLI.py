@@ -43,8 +43,9 @@ def cliMain():
 			# Run the event driver against the documents in the API object.
 			api.runEventDriver(eventDriver)
 			
-			# Run the analysis.
-			api.runAnalysis(analysisMethod, distanceFunc)
+			# Run the analysis and get the results in a formatted string.
+			unknownDoc, results = api.runAnalysis(analysisMethod, distanceFunc)
+			formattedResults = api.prettyFormatResults(canonicizers, eventDriver, analysisMethod, distanceFunc, unknownDoc, results)
 
 def _parse_args(empty=False):
 	"""Parse command line arguments"""
