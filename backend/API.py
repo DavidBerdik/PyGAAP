@@ -64,6 +64,26 @@ class API:
 		# Use the analysis to train and return the results of performing the analysis.
 		analysis.train(knownDocs)
 		return unknownDoc, analysis.analyze(unknownDoc)
+		
+	def prettyFormatResults(self, canonicizers, eventDriver, analysisMethod, distanceFunc, unknownDoc, results):
+		'''Returns a string of the results in a pretty, formatted structure.'''
+		# Build a string the contains general information about the experiment.
+		formattedResults = str(unknownDoc.title) + ' ' + str(unknownDoc.filepath) + "\nCanonicizers:\n"
+		for canonicizer in canonicizers:
+			formattedResults += '\t' + canonicizer + '\n'
+		formattedResults += "Event Driver:\n\t" + eventDriver + "\nAnalysis Method:\n\t" + analysisMethod + " with " + distanceFunc + '\n'
+		
+		# Sort the dictionary in ascending order by distance values and build the results listing.
+		orderedResults = {k: results[k] for k in sorted(results, key=results.get)}
+		placement = 0
+		prev = None
+		for k, v in orderedResults.items():
+			if prev == None or prev < v:
+				placement += 1
+				prev = v
+			formattedResults += str(placement) + ". " + str(k) + ' ' + str(v) + '\n'
+		
+		return formattedResults
 			
 	def _buildParamList(self, eventDriverString):
 		'''Builds and returns a list of parameter values that will be passed to an EventDriver.'''
