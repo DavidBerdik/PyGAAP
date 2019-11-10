@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from nltk import ngrams
-from nltk.tokenize import word_tokenize
+from nltk.tokenize import word_tokenize, sent_tokenize
 
 # An abstract EventDriver class.
 class EventDriver(ABC):
@@ -56,3 +56,13 @@ class NltkWordTokenizerEventDriver(EventDriver):
 		
 	def displayName():
 		return "Words (NLTK Tokenizer)"
+		
+class SentenceEventDriver(EventDriver):
+	'''Event Driver for getting sentences using the NLTK Sentence Tokenizer.'''
+	
+	def createEventSet(self, procText):
+		'''Returns a list of sentences as defined by the NLTK Sentence Tokenizer.'''
+		return sent_tokenize(procText)
+		
+	def displayName():
+		return "Sentences"
