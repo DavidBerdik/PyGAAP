@@ -35,3 +35,11 @@ class CharacterNGramEventDriver(EventDriver):
 	def setParams(self, params):
 		'''Sets the n parameter (length) for the Character N-Gram Event Driver. params is a list. '''
 		self.n = params[0]
+		
+class WhitespaceDelimitedWordEventDriver(EventDriver)
+	'''Event Driver for Whitespace-Delimited Words'''
+	
+	def createEventSet(self, procText):
+		'''Returns a list of words where a word is considered a whitespace-delimited unit.'''
+		return procText.split()
+	
