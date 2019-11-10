@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from nltk import ngrams
+from nltk.tokenize import word_tokenize
 
 # An abstract EventDriver class.
 class EventDriver(ABC):
@@ -36,10 +37,22 @@ class CharacterNGramEventDriver(EventDriver):
 		'''Sets the n parameter (length) for the Character N-Gram Event Driver. params is a list. '''
 		self.n = params[0]
 		
-class WhitespaceDelimitedWordEventDriver(EventDriver)
+class WhitespaceDelimitedWordEventDriver(EventDriver):
 	'''Event Driver for Whitespace-Delimited Words'''
 	
 	def createEventSet(self, procText):
 		'''Returns a list of words where a word is considered a whitespace-delimited unit.'''
 		return procText.split()
+		
+	def displayName():
+		return "Words (Whitespace-Delimited)"
+		
+class NltkWordTokenizerEventDriver(EventDriver):
+	'''Event Driver for using the NLTK Word Tokenizer.'''
 	
+	def createEventSet(self, procText):
+		'''Returns a list of words as defined by the NLTK Word Tokenizer.'''
+		return word_tokenize(procText)
+		
+	def displayName():
+		return "Words (NLTK Tokenizer)"
