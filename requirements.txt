@@ -1,2 +1,3 @@
 dictances
 nltk
+numpy
