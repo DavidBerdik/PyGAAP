@@ -46,6 +46,10 @@ class WhitespaceDelimitedWordEventDriver(EventDriver):
 		
 	def displayName():
 		return "Words (Whitespace-Delimited)"
+	
+	def setParams(self, params):
+		'''This function is required, but does not do anything for this event driver.'''
+		pass
 		
 class NltkWordTokenizerEventDriver(EventDriver):
 	'''Event Driver for using the NLTK Word Tokenizer.'''
@@ -57,6 +61,10 @@ class NltkWordTokenizerEventDriver(EventDriver):
 	def displayName():
 		return "Words (NLTK Tokenizer)"
 		
+	def setParams(self, params):
+		'''This function is required, but does not do anything for this event driver.'''
+		pass
+		
 class SentenceEventDriver(EventDriver):
 	'''Event Driver for getting sentences using the NLTK Sentence Tokenizer.'''
 	
@@ -66,3 +74,7 @@ class SentenceEventDriver(EventDriver):
 		
 	def displayName():
 		return "Sentences"
+		
+	def setParams(self, params):
+		'''This function is required, but does not do anything for this event driver.'''
+		pass
