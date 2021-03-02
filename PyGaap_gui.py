@@ -20,28 +20,49 @@ topwindow.geometry("1000x620")
 def todofunc(): #place holder "to-do function"
     return None
 
-def select_features(ListBox, feature, function):
-    """Used by Event Drivers and Event culling to add/remove/clear selected features.
+def select_features(ListBoxAv, ListBoxOp, feature, function):
+    """Used by Event Drivers, Event culling etc to add/remove/clear selected features.
     Needs to check if feature is already added."""
+    #ListBoxAv: "listbox selection", listbox to choose from
+    #ListBoxOp: "listbox operate-on", listbox to modify: the selectd listbox.
+    #feature: is the return of listbox.curselection()
     if function=="clear":
-        ListBox.delete(0, END)
+        ListBoxOp.delete(0, END)
     elif function=="remove":
-        return None
+        try:
+            ListBoxOp.delete(feature)
+        except:
+            print("remove from list: nothing selected")
+            return None
+        try:
+            ListBoxOp.select_set(END)
+        except:
+            return None
+    elif function=="add":
+        try:
+            ListBoxOp.insert(END, ListBoxAv.get(feature))
+        except:
+            print("add to list: nothing selected")
 
     return None
 
-def find_feature():
-    #still figuring out what this does but basic idea is here. 2021.2.27
+def find_parameters(feature):
+    """find parameters in some features to display and set"""
+    pass
+
+def find_feature(section, directory):
     """Universal find feature function for:
     canonicizers, event drivers, event culling, analysis methods, and distance functions.
-    looks for py or text files (or both?) in PyGaap Directory for those features and extracts information like:
+    As the app is starting up,
+    this function looks for py or text files (or both?) in PyGaap Directory for those features and extracts information like:
     description to display in the discription textbox;
     location of those py files so PyGAAP GUI can use it;
-    
+    parameters of a feature to be stored for execution;
+
     -others to be determined
-    
     """
-    return None
+    #section: categories in which to find the features like Canonicizers, Event Drivers, Event Cullers etc.
+    pass
 
 def displayAbout():
     AboutPage=Toplevel()
@@ -272,6 +293,8 @@ Tab_Canon_Buttons_formatMenu=OptionMenu(Tab_Canon_Buttons, CanonicizerFormat, *C
 Tab_Canon_Buttons_formatMenu.grid(row=1, column=1, sticky="NW")
 
 Tab_Canon_Buttons_add=Button(Tab_Canon_Buttons, width=Tab_Canon_ButtonWidth, text="Add", command=todofunc)
+#first initialize the buttons. Since the "selected listbox is not initialized yet, can't use the select_features function."
+#need to reconfigure later.
 Tab_Canon_Buttons_add.grid(row=2, column=1, sticky="NW")
 
 Tab_Canon_Buttons_remove=Button(Tab_Canon_Buttons, width=Tab_Canon_ButtonWidth, text="Remove", command=todofunc)
@@ -291,6 +314,13 @@ Tab_Canon_Selected_listbox=Listbox(Tab_Canon_Selected, width="45", height=Tab_Ca
 for values in testfeatures[:2]:
     Tab_Canon_Selected_listbox.insert(END, values)
 Tab_Canon_Selected_listbox.grid(row=2, column=1)
+
+#reconfiguring the buttons after the seleted listboxes are initialized:
+Tab_Canon_Buttons_add.configure(command=lambda:select_features(Tab_Canon_Available_listbox, Tab_Canon_Selected_listbox,\
+    Tab_Canon_Available_listbox.curselection(), "add"))
+Tab_Canon_Buttons_remove.configure(command=lambda:select_features(None, Tab_Canon_Selected_listbox,\
+    Tab_Canon_Selected_listbox.curselection(), "remove"))
+Tab_Canon_Buttons_clear.configure(command=lambda:select_features(None, Tab_Canon_Selected_listbox, None, "clear"))
 #####
 
 Tab_Canon_Description=Frame(Tab_Canonicizers)
