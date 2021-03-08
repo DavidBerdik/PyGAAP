@@ -2,7 +2,7 @@
 #PyGaap is the Python port of JGAAP, Java Graphical Authorship Attribution Program by Patrick Juola
 #See https://evllabs.github.io/JGAAP/
 #
-#2021.03.02
+#2021.03.07
 #Michael Fang, Boston University.
 
 #REQUIRED MODULES BELOW. USE pip OR pip3 IN YOUR TERMINAL TO INSTALL.
@@ -84,27 +84,30 @@ def displayAbout():
     AboutPage_text.pack(side='bottom', fill='both', expand='yes')
     AboutPage.mainloop()
 
-Tab_Documents_Notes_content=""
+Notes_content=""
 
 
 def notepad():
-    """Documents tab - "Notes" button window UNDER CONSTRUCTION"""
-    #global Tab_Documents_Notes_content
-    Tab_Documents_NotepadWindow=Toplevel()
-    Tab_Documents_NotepadWindow.title("Notes")
-    #Tab_Documents_NotepadWindow.geometry("600x400")
-    Tab_Documents_NotepadWindow_Textfield=Text(Tab_Documents_NotepadWindow)
-    Tab_Documents_NotepadWindow_Textfield.insert("1.0", Tab_Documents_Notes_content)
-    Tab_Documents_NotepadWindow_SaveButton=Button(Tab_Documents_NotepadWindow, text="Save",\
-                                                  command=Tab_Documents_Notepad_Save(Tab_Documents_NotepadWindow_Textfield.get("1.0", "end-1c")))
-    Tab_Documents_NotepadWindow_Textfield.pack(padx=1, expand=True)
-    Tab_Documents_NotepadWindow_SaveButton.pack(padx=1, expand=True)
-    print("getfunction", Tab_Documents_NotepadWindow_Textfield.get("0.0", "end-1c"))
-    Tab_Documents_NotepadWindow.mainloop()
+    """Notes button window"""
+    global Notes_content
+    NotepadWindow=Toplevel()
+    NotepadWindow.title("Notes")
+    #NotepadWindow.geometry("600x500")
+    NotepadWindow_Textfield=Text(NotepadWindow)
+    NotepadWindow_Textfield.insert("1.0", str(Notes_content))
+    NotepadWindow_SaveButton=Button(NotepadWindow, text="Save",\
+        command=lambda:Notepad_Save(NotepadWindow_Textfield.get("1.0", "end-1c")))
+    NotepadWindow_Textfield.pack(padx=1, expand=True)
+    NotepadWindow_SaveButton.pack(padx=1, expand=True)
+    NotepadWindow.mainloop()
     return None
 
-def Tab_Documents_Notepad_Save(text):
-    Tab_Documents_Notes_content=text
+def Notepad_Save(text):
+    global Notes_content
+    Notes_content=text
+    return None
+
+def removeDoc():
     return None
 
 
@@ -208,6 +211,7 @@ Tab_Documents_UnknownAuthors_Frame.grid(row=5, column=1, sticky="W")
 
 Tab_Documents_UnknownAuthors_listbox=Listbox(Tab_Documents_UnknownAuthors_Frame, width="100")
 Tab_Documents_UnknownAuthors_listscrollbar=Scrollbar(Tab_Documents_UnknownAuthors_Frame)
+#loop below: to be removed
 for values in testfeatures[:5]:
     Tab_Documents_UnknownAuthors_listbox.insert(END, values)
 
@@ -222,7 +226,8 @@ Tab_Documents_UnknownAuthors_listscrollbar.pack(side=RIGHT, fill=BOTH)
 Tab_Documents_doc_buttons=Frame(Tab_Documents)
 Tab_Documents_doc_buttons.grid(row=6, column=1, sticky="W")
 Tab_Documents_UnknownAuthors_AddDoc_Button=Button(Tab_Documents_doc_buttons, text="Add Document", width="16", command=todofunc())
-Tab_Documents_UnknownAuthors_RmvDoc_Button=Button(Tab_Documents_doc_buttons, text="Remove Document", width="16", command=todofunc())
+Tab_Documents_UnknownAuthors_RmvDoc_Button=Button(Tab_Documents_doc_buttons, text="Remove Document", width="16", command=\
+    lambda:select_features(None, Tab_Documents_UnknownAuthors_listbox, Tab_Documents_UnknownAuthors_listbox.curselection(), "remove"))
 
 Tab_Documents_UnknownAuthors_AddDoc_Button.grid(row=1, column=1, sticky="W")
 Tab_Documents_UnknownAuthors_RmvDoc_Button.grid(row=1, column=2, sticky="W")
@@ -238,7 +243,8 @@ Tab_Documents_KnownAuthors_Frame.grid(row=8, column=1, sticky="W")
 
 Tab_Documents_KnownAuthors_listbox=Listbox(Tab_Documents_KnownAuthors_Frame, width="100")
 Tab_Documents_KnownAuthors_listscroller=Scrollbar(Tab_Documents_KnownAuthors_Frame)
-for values in testfeatures[:2]:
+#loop below: to be removed
+for values in testfeatures[:5]:
     Tab_Documents_KnownAuthors_listbox.insert(END, values)
 
 
@@ -253,7 +259,8 @@ Tab_Documents_knownauth_buttons=Frame(Tab_Documents)
 Tab_Documents_knownauth_buttons.grid(row=9, column=1, sticky="W")
 Tab_Documents_KnownAuthors_AddAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Add Author", width="15", command=todofunc())
 Tab_Documents_KnownAuthors_EditAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Edit Author", width="15", command=todofunc())
-Tab_Documents_KnownAuthors_RmvAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Remove Author", width="15", command=todofunc())
+Tab_Documents_KnownAuthors_RmvAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Remove Author", width="15", command=\
+    lambda:select_features(None, Tab_Documents_KnownAuthors_listbox, Tab_Documents_KnownAuthors_listbox.curselection(), "remove"))
 
 Tab_Documents_KnownAuthors_AddAuth_Button.grid(row=1, column=1, sticky="W")
 Tab_Documents_KnownAuthors_EditAuth_Button.grid(row=1, column=2, sticky="W")
@@ -377,6 +384,16 @@ for values in testfeatures[:2]:
     Tab_EventDrivers_Selected_listbox.insert(END, values)
 Tab_EventDrivers_Selected_listbox.grid(row=2, column=1)
 #####
+
+#reconfiguring buttons for event drivers
+Tab_EventDrivers_Buttons_add.configure(command=\
+    lambda:select_features(Tab_EventDrivers_available_listbox, Tab_EventDrivers_Selected_listbox, Tab_EventDrivers_available_listbox.curselection(), "add"))
+Tab_EventDrivers_Buttons_clear.configure(command=\
+    lambda:select_features(None, Tab_EventDrivers_Selected_listbox, None, "clear"))
+Tab_EventDrivers_Buttons_remove.configure(command=\
+    lambda:select_features(None, Tab_EventDrivers_Selected_listbox, Tab_EventDrivers_Selected_listbox.curselection(), "remove"))
+
+
 
 Tab_EventDrivers_Description=Frame(Tab_EventDrivers)
 Tab_EventDrivers_Description.grid(row=2, column=1, sticky="NW")
