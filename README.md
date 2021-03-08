@@ -2,10 +2,10 @@
 # Python Graphical Authorship Attribution Program
 The Python Graphical Authorship Attribution Program (PyGAAP) is an experimental reimplementation of the [Duquesne University Evaluating Variations in Language Lab's JGAAP](https://github.com/evllabs/JGAAP). Currently, PyGAAP is in its prototype phase and is by no means feature-complete. Although participation in the development of PyGAAP is encouraged, it should not be used for any serious text analysis at this time.
 
+**This fork is my attempt at making a PyGAAP graphical interface using tkinter, the GUI package that comes with Python.
 
 ## Features
 PyGAAP currently contains only a small subset of features from JGAAP and most features are not implemented. Several major missing features include:
-* PyGAAP does not yet have a graphical user interface
 * PyGAAP does not yet support multi-threading
 * PyGAAP does not yet provide extensive logging
 * PyGAAP does not yet support feature set culling
