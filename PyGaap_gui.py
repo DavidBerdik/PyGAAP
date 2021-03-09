@@ -2,13 +2,14 @@
 #PyGaap is the Python port of JGAAP, Java Graphical Authorship Attribution Program by Patrick Juola
 #See https://evllabs.github.io/JGAAP/
 #
-#2021.03.07
+#2021.03.08
 #Michael Fang, Boston University.
 
 #REQUIRED MODULES BELOW. USE pip OR pip3 IN YOUR TERMINAL TO INSTALL.
 
 from tkinter import *
 from tkinter import ttk
+from tkinter.filedialog import askopenfilename
 
 topwindow=Tk() #this is the top-level window when you first open PyGAAP
 topwindow.title("PyGAAP (GUI, underconstruction)")
@@ -65,6 +66,7 @@ def find_feature(section, directory):
     pass
 
 def displayAbout():
+    """Displays the About Page"""
     AboutPage=Toplevel()
     AboutPage.title("About PyGaap")
     AboutPage.geometry("600x300")
@@ -103,11 +105,70 @@ def notepad():
     return None
 
 def Notepad_Save(text):
+    """saves the contents displayed in the notepad textfield when the button is pressed"""
     global Notes_content
     Notes_content=text
     return None
 
-def removeDoc():
+def addFile(WindowTitle, ListboxOp, AllowDuplicates):
+    """Universal add file function to bring up the explorer window"""
+    #WindowTitle is the title of the window, may change depending on what kind of files are added
+    #ListboxOp is the listbox object to operate on
+    #AllowDuplicates is whether the listbox allows duplicates.
+    #if it does not allow duplicates, it won't be added to the listbox and it prints a message.
+    filename=askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")), title=WindowTitle)
+    if AllowDuplicates:
+        ListboxOp.insert(END, filename)
+    else:
+        for fileinlist in ListboxOp.get(0, END):
+            if fileinlist==filename:
+                print("Add document: file already in list")
+                return None
+        ListboxOp.insert(END, filename)
+    return None
+
+
+
+def authorsList(author=None):
+    """Add or edit authors"""
+    #if author is empty, used as "add author"; if author specified, used as "edit author".
+    
+    #TO-DO: author list and documents must be global values.
+
+    AuthorWindow=Toplevel()
+    AuthorWindow.geometry("550x330")
+
+    AuthorNameLabel=Label(AuthorWindow, text="Author", font="bold")
+    AuthorNameLabel.grid(row=1, column=1, pady=7, sticky="NW")
+
+    AuthorNameEntry=Entry(AuthorWindow, width=40)
+    AuthorNameEntry.grid(row=1, column=2, pady=7, sticky="NW")
+
+    AuthorListbox=Listbox(AuthorWindow, height=12, width=60)
+    AuthorListbox.grid(row=2, column=2, sticky="NW")
+
+    AuthorButtonsFrame=Frame(AuthorWindow)
+    
+    AuthorAddDocButton=Button(AuthorButtonsFrame, text="Add Document", command=todofunc)
+    AuthorAddDocButton.grid(row=1, column=1)
+    AuthorRmvDocButton=Button(AuthorButtonsFrame, text="Remove Document", command=todofunc)
+    AuthorRmvDocButton.grid(row=1, column=2)
+    AuthorButtonsFrame.grid(row=3, column=2, sticky='NW')
+
+    AuthorBottomButtonsFrame=Frame(AuthorWindow)
+    AuthorOKButton=Button(AuthorBottomButtonsFrame, text="OK", command=todofunc)
+    AuthorOKButton.grid(row=1, column=1, sticky="W")
+    AuthorCancelButton=Button(AuthorBottomButtonsFrame, text="Cancel", command=lambda:AuthorWindow.destroy())
+    AuthorCancelButton.grid(row=1, column=2, sticky="W")
+    AuthorBottomButtonsFrame.grid(row=4, column=2, pady=7, sticky="NW")
+    
+    if author==None:
+        AuthorWindow.title("Add Author")
+    else:
+        AuthorWindow.title("Edit Author")
+
+
+    AuthorWindow.mainloop()
     return None
 
 
@@ -225,7 +286,8 @@ Tab_Documents_UnknownAuthors_listscrollbar.pack(side=RIGHT, fill=BOTH)
 
 Tab_Documents_doc_buttons=Frame(Tab_Documents)
 Tab_Documents_doc_buttons.grid(row=6, column=1, sticky="W")
-Tab_Documents_UnknownAuthors_AddDoc_Button=Button(Tab_Documents_doc_buttons, text="Add Document", width="16", command=todofunc())
+Tab_Documents_UnknownAuthors_AddDoc_Button=Button(Tab_Documents_doc_buttons, text="Add Document", width="16", command=\
+    lambda:addFile("Add a document to Unknown Authors", Tab_Documents_UnknownAuthors_listbox, False))
 Tab_Documents_UnknownAuthors_RmvDoc_Button=Button(Tab_Documents_doc_buttons, text="Remove Document", width="16", command=\
     lambda:select_features(None, Tab_Documents_UnknownAuthors_listbox, Tab_Documents_UnknownAuthors_listbox.curselection(), "remove"))
 
@@ -257,7 +319,7 @@ Tab_Documents_KnownAuthors_listscroller.pack(side=RIGHT, fill=BOTH)
 
 Tab_Documents_knownauth_buttons=Frame(Tab_Documents)
 Tab_Documents_knownauth_buttons.grid(row=9, column=1, sticky="W")
-Tab_Documents_KnownAuthors_AddAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Add Author", width="15", command=todofunc())
+Tab_Documents_KnownAuthors_AddAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Add Author", width="15", command=authorsList)
 Tab_Documents_KnownAuthors_EditAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Edit Author", width="15", command=todofunc())
 Tab_Documents_KnownAuthors_RmvAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Remove Author", width="15", command=\
     lambda:select_features(None, Tab_Documents_KnownAuthors_listbox, Tab_Documents_KnownAuthors_listbox.curselection(), "remove"))
