@@ -119,7 +119,7 @@ def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
     #AllowDuplicates is whether the listbox allows duplicates.
     #if listbox does not allow duplicates, item won't be added to the listbox and this prints a message to the terminal.
     #liftwindow is the window to go back to focus when the file browser closes
-    filename=askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")), title=WindowTitle)
+    filename=askopenfilename(filetypes=(("Any File", "*.*"), ("All Files", "*.*")), title=WindowTitle)
     if liftwindow != None:
         liftwindow.lift(topwindow)
     if AllowDuplicates and filename !="":
@@ -140,20 +140,29 @@ def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
 
 
 KnownAuthors=[]
-#KnownAuthors list format: [[author, file-directory, file-directory], [author, file-directory, file directory]]
+#KnownAuthors list format: [[author, [file-directory, file-directory]], [author, [file-directory, file directory]]]
+KnownAuthorsList=[]
+#this decides which in the 1-dimensionl listbox is the authora and therefore can be deleted when using delete author
 
 def authorsListUpdater(listbox):
     """This updates the ListBox from the KnownAuthors python-list"""
     global KnownAuthors
+    global KnownAuthorsList
     listbox.delete(0, END)
-    for authorlist in KnownAuthors:
-        listbox.insert(END, authorlist[0])
-        for document in authorlist[1]:
-            listbox.insert(END, document)
+    KnownAuthorsList=[]
+    for authorlistindex in range(len(KnownAuthors)):#Authors
+        listbox.insert(END, KnownAuthors[authorlistindex][0])
+        listbox.itemconfig(END, background="light cyan", selectbackground="sky blue")
+        KnownAuthorsList+=[authorlistindex]
+        for document in KnownAuthors[authorlistindex][1]:
+            listbox.insert(END, document)#Author's documents
+            listbox.itemconfig(END, background="gray90", selectbackground="gray77")
+            KnownAuthorsList+=[-1]
+    print(KnownAuthorsList)
     return None
 
 
-def authorSave(listbox, author, documentsList, mode):
+def authorSave(window, listbox, author, documentsList, mode):
     """This saves author when adding/editing to the KnownAuthors list. Then uses authorsListUpdater to update the listbox
     """
     #Listbox: the authors listbox.
@@ -167,22 +176,27 @@ def authorSave(listbox, author, documentsList, mode):
             if KnownAuthors[AuthorIndex][0]==author:#when author is already in the list, merge.
                 KnownAuthors[AuthorIndex][1]=KnownAuthors[AuthorIndex][1]+list([doc for doc in documentsList if doc not in KnownAuthors[AuthorIndex][1]])
                 authorsListUpdater(listbox)
+                window.destroy()
                 return None
             AuthorIndex+=1
         KnownAuthors+=[[author, list([file for file in documentsList if type(file)==str])]]#no existing author found, add.
         authorsListUpdater(listbox)
+    window.destroy()
     return None
 
 def authorsList(authorList, mode):
-    """Add or edit authors
+    """Add, edit or remove authors
     This updates the global KnownAuthors list.
+    This opens a window to add/edit authors; does not open a window to remove authors
     """
-    #if author is empty, used as "add author"; if author listbox is specified, used as "edit author".
-    
+    #authorList: the listbox that displays known authors in the topwindow.
+    #authorList calls authorSave (which calls authorListUpdater) when adding/editing author
+    #
+
     if mode=="add":
         title="Add Author"
         mode='add'
-    else:
+    elif mode=='edit':
         try:
             authorList.get(authorList.curselection())
         except:
@@ -190,6 +204,29 @@ def authorsList(authorList, mode):
             return None
         title="Edit Author"
         mode='edit'
+    elif mode=="remove":#remove author does not open a window
+        try:
+            global KnownAuthorsList #this is the list corresponding to the listbox
+            global KnownAuthors #this is the nested list
+            selected=int(authorList.curselection()[0])#this gets the listbox selection index
+            if KnownAuthorsList[selected]==-1:
+                print("remove author: select the author instead of the document")
+            else:
+                AuthorIndex=KnownAuthorsList[selected]#This gets the index in KnownAuthors nested list
+                if AuthorIndex>=len(KnownAuthors)-1:
+                    KnownAuthors=KnownAuthors[:AuthorIndex]
+                else:
+                    KnownAuthors=KnownAuthors[:AuthorIndex]+KnownAuthors[AuthorIndex+1:]
+                authorsListUpdater(authorList)
+                print(KnownAuthors)
+        except:
+            print("remove author: nothing selected")
+            return None
+        return None
+    else:
+        print("coding error: Author Add/Edit/Remove function 'authorsList' has an unknown mode parameter "+str(mode))
+        assert mode=="add" or mode=="remove" or mode=="edit"
+        return None
 
     AuthorWindow=Toplevel()
     AuthorWindow.grab_set()#Disables main window when the add/edit author window appears
@@ -218,7 +255,7 @@ def authorsList(authorList, mode):
     AuthorBottomButtonsFrame=Frame(AuthorWindow)
     #OK button functions differently depending on "add" or "edit".
     AuthorOKButton=Button(AuthorBottomButtonsFrame, text="OK"\
-        ,command=lambda:authorSave(authorList, AuthorNameEntry.get(), AuthorListbox.get(0, END), mode)\
+        ,command=lambda:authorSave(AuthorWindow, authorList, AuthorNameEntry.get(), AuthorListbox.get(0, END), mode)\
             )
     AuthorOKButton.grid(row=1, column=1, sticky="W")
     AuthorCancelButton=Button(AuthorBottomButtonsFrame, text="Cancel", command=lambda:AuthorWindow.destroy())
@@ -362,8 +399,6 @@ Tab_Documents_KnownAuthors_Frame.grid(row=8, column=1, sticky="W")
 
 Tab_Documents_KnownAuthors_listbox=Listbox(Tab_Documents_KnownAuthors_Frame, width="100")
 Tab_Documents_KnownAuthors_listscroller=Scrollbar(Tab_Documents_KnownAuthors_Frame)
-#loop below: to be removed
-
 
 Tab_Documents_KnownAuthors_listbox.config(yscrollcommand=Tab_Documents_KnownAuthors_listscroller.set)
 Tab_Documents_KnownAuthors_listscroller.config(command=Tab_Documents_KnownAuthors_listbox.yview)
@@ -372,6 +407,7 @@ Tab_Documents_KnownAuthors_listscroller.config(command=Tab_Documents_KnownAuthor
 Tab_Documents_KnownAuthors_listbox.pack(side=LEFT, fill=BOTH)
 Tab_Documents_KnownAuthors_listscroller.pack(side=RIGHT, fill=BOTH)
 
+#These are known authors
 Tab_Documents_knownauth_buttons=Frame(Tab_Documents)
 Tab_Documents_knownauth_buttons.grid(row=9, column=1, sticky="W")
 Tab_Documents_KnownAuthors_AddAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Add Author", width="15",\
@@ -379,7 +415,7 @@ Tab_Documents_KnownAuthors_AddAuth_Button=Button(Tab_Documents_knownauth_buttons
 Tab_Documents_KnownAuthors_EditAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Edit Author", width="15",\
     command=lambda:authorsList(Tab_Documents_KnownAuthors_listbox, 'edit'))
 Tab_Documents_KnownAuthors_RmvAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Remove Author", width="15", command=\
-    lambda:select_features(None, Tab_Documents_KnownAuthors_listbox, Tab_Documents_KnownAuthors_listbox.curselection(), "remove"))
+    lambda:authorsList(Tab_Documents_KnownAuthors_listbox, "remove"))
 
 Tab_Documents_KnownAuthors_AddAuth_Button.grid(row=1, column=1, sticky="W")
 Tab_Documents_KnownAuthors_EditAuth_Button.grid(row=1, column=2, sticky="W")
