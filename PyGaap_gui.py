@@ -2,7 +2,7 @@
 #PyGaap is the Python port of JGAAP, Java Graphical Authorship Attribution Program by Patrick Juola
 #See https://evllabs.github.io/JGAAP/
 #
-#2021.03.09
+#2021.03.20
 #Michael Fang, Boston University.
 
 #REQUIRED MODULES BELOW. USE pip OR pip3 IN YOUR TERMINAL TO INSTALL.
@@ -112,6 +112,9 @@ def Notepad_Save(text):
     Notes_content=text
     return None
 
+def next_tab(notebook):
+    pass
+
 def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
     """Universal add file function to bring up the explorer window"""
     #WindowTitle is the title of the window, may change depending on what kind of files are added
@@ -119,7 +122,7 @@ def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
     #AllowDuplicates is whether the listbox allows duplicates.
     #if listbox does not allow duplicates, item won't be added to the listbox and this prints a message to the terminal.
     #liftwindow is the window to go back to focus when the file browser closes
-    filename=askopenfilename(filetypes=(("Any File", "*.*"), ("All Files", "*.*")), title=WindowTitle)
+    filename=askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")), title=WindowTitle)
     if liftwindow != None:
         liftwindow.lift(topwindow)
     if AllowDuplicates and filename !="":
@@ -146,6 +149,7 @@ KnownAuthorsList=[]
 
 def authorsListUpdater(listbox):
     """This updates the ListBox from the KnownAuthors python-list"""
+    print("list updater")
     global KnownAuthors
     global KnownAuthorsList
     listbox.delete(0, END)
@@ -158,7 +162,6 @@ def authorsListUpdater(listbox):
             listbox.insert(END, document)#Author's documents
             listbox.itemconfig(END, background="gray90", selectbackground="gray77")
             KnownAuthorsList+=[-1]
-    print(KnownAuthorsList)
     return None
 
 
@@ -166,21 +169,41 @@ def authorSave(window, listbox, author, documentsList, mode):
     """This saves author when adding/editing to the KnownAuthors list. Then uses authorsListUpdater to update the listbox
     """
     #Listbox: the authors listbox.
-    #author: the author's name entered in authorsList window.
+    #author: 
+    #       "ADD MODE": the author's name entered in authorsList window
+    #       "EDIT MODE": [original author name, changed author name]
     #documentsList: list of documents entered in the listbox in the authorsList window
     #mode: add or edit
     global KnownAuthors
-    if (author != None and author.strip() !="") and (documentsList !=None and len(documentsList)!=0):  
-        AuthorIndex=0
-        while AuthorIndex<len(KnownAuthors):#check if author already exists
-            if KnownAuthors[AuthorIndex][0]==author:#when author is already in the list, merge.
-                KnownAuthors[AuthorIndex][1]=KnownAuthors[AuthorIndex][1]+list([doc for doc in documentsList if doc not in KnownAuthors[AuthorIndex][1]])
-                authorsListUpdater(listbox)
-                window.destroy()
-                return None
-            AuthorIndex+=1
-        KnownAuthors+=[[author, list([file for file in documentsList if type(file)==str])]]#no existing author found, add.
-        authorsListUpdater(listbox)
+    print("Author Save:", str(window), str(author), str(documentsList), str(mode))
+    if mode=="add":
+        if (author != None and author.strip() !="") and (documentsList !=None and len(documentsList)!=0):  
+            AuthorIndex=0
+            while AuthorIndex<len(KnownAuthors):#check if author already exists
+                if KnownAuthors[AuthorIndex][0]==author:#when author is already in the list, merge.
+                    KnownAuthors[AuthorIndex][1]=KnownAuthors[AuthorIndex][1]+list([doc for doc in documentsList if doc not in KnownAuthors[AuthorIndex][1]])
+                    authorsListUpdater(listbox)
+                    window.destroy()
+                    return None
+                AuthorIndex+=1
+            KnownAuthors+=[[author, list([file for file in documentsList if type(file)==str])]]#no existing author found, add.
+            authorsListUpdater(listbox)
+        window.destroy()
+        return None
+    elif mode=='edit':
+        if (author[1] != None and author[1].strip() !="") and (documentsList !=None and len(documentsList)!=0):
+            AuthorIndex=0
+            while AuthorIndex<len(KnownAuthors):
+                if KnownAuthors[AuthorIndex][0]==author:
+                    KnownAuthors[AuthorIndex]=[author[1], documentsList]
+                    authorsListUpdater(listbox)
+                    window.destroy()
+                    return None
+                AuthorIndex+=1
+            print("coding error: editing author: list of authors and documents changed unexpectedly when saving")
+            return None
+    else:
+        print("coding error: unknown parameter passed to 'authorSave' function: ", str(mode))
     window.destroy()
     return None
 
@@ -192,25 +215,35 @@ def authorsList(authorList, mode):
     #authorList: the listbox that displays known authors in the topwindow.
     #authorList calls authorSave (which calls authorListUpdater) when adding/editing author
     #
-
+    print("AuthorsList, mode=", mode)
+    global KnownAuthors
+    global KnownAuthorsList
     if mode=="add":
         title="Add Author"
         mode='add'
     elif mode=='edit':
         try:
             authorList.get(authorList.curselection())
+            title="Edit Author"
+            mode='edit'
+            selected=int(authorList.curselection()[0])
+            if KnownAuthorsList[selected]==-1:
+                print("edit author: select the author instead of the document")
+                return None
+            else:
+                AuthorIndex=KnownAuthorsList[selected]#gets the index in the 2D list
+                insertAuthor=KnownAuthors[selected][0]#original author name
+                insertDocs=KnownAuthors[selected][1]#original list of documents
         except:
             print("edit author: nothing selected")
             return None
-        title="Edit Author"
-        mode='edit'
+
     elif mode=="remove":#remove author does not open a window
         try:
-            global KnownAuthorsList #this is the list corresponding to the listbox
-            global KnownAuthors #this is the nested list
             selected=int(authorList.curselection()[0])#this gets the listbox selection index
             if KnownAuthorsList[selected]==-1:
                 print("remove author: select the author instead of the document")
+                return None
             else:
                 AuthorIndex=KnownAuthorsList[selected]#This gets the index in KnownAuthors nested list
                 if AuthorIndex>=len(KnownAuthors)-1:
@@ -218,7 +251,7 @@ def authorsList(authorList, mode):
                 else:
                     KnownAuthors=KnownAuthors[:AuthorIndex]+KnownAuthors[AuthorIndex+1:]
                 authorsListUpdater(authorList)
-                print(KnownAuthors)
+
         except:
             print("remove author: nothing selected")
             return None
@@ -237,9 +270,14 @@ def authorsList(authorList, mode):
     AuthorNameLabel.grid(row=1, column=1, pady=7, sticky="NW")
 
     AuthorNameEntry=Entry(AuthorWindow, width=40)
+    if mode=="edit":
+        AuthorNameEntry.insert(END, insertAuthor)
     AuthorNameEntry.grid(row=1, column=2, pady=7, sticky="NW")
 
     AuthorListbox=Listbox(AuthorWindow, height=12, width=60)
+    if mode=="edit":
+        for j in insertDocs:
+            AuthorListbox.insert(END, j)
     AuthorListbox.grid(row=2, column=2, sticky="NW")
 
     AuthorButtonsFrame=Frame(AuthorWindow)
@@ -254,9 +292,12 @@ def authorsList(authorList, mode):
 
     AuthorBottomButtonsFrame=Frame(AuthorWindow)
     #OK button functions differently depending on "add" or "edit".
-    AuthorOKButton=Button(AuthorBottomButtonsFrame, text="OK"\
-        ,command=lambda:authorSave(AuthorWindow, authorList, AuthorNameEntry.get(), AuthorListbox.get(0, END), mode)\
-            )
+    AuthorOKButton=Button(AuthorBottomButtonsFrame, text="OK")
+    if mode=="add":
+        AuthorOKButton.configure(command=lambda:authorSave(AuthorWindow, authorList, AuthorNameEntry.get(), AuthorListbox.get(0, END), mode))
+    elif mode=="edit":
+        AuthorOKButton.configure(command=lambda:authorSave(AuthorWindow, authorList, [insertAuthor, AuthorNameEntry.get()], AuthorListbox.get(0, END), mode))
+
     AuthorOKButton.grid(row=1, column=1, sticky="W")
     AuthorCancelButton=Button(AuthorBottomButtonsFrame, text="Cancel", command=lambda:AuthorWindow.destroy())
     AuthorCancelButton.grid(row=1, column=2, sticky="W")
@@ -299,14 +340,14 @@ topwindow.config(menu=menubar)
 #the middle workspace where the tabs are
 
 workspace=Frame(topwindow, height=800, width=570)
-workspace.pack()
+workspace.pack(padx=20)
 
 tabs=ttk.Notebook(workspace)
 tabs.pack(pady=1, expand=True)
 
 #size for all the main tabs.
 tabheight=550
-tabwidth=950
+tabwidth=1000
 
 
 #below is the tabs framework
@@ -549,14 +590,159 @@ Tab_EventDrivers_Buttons_remove.configure(command=\
     lambda:select_features(None, Tab_EventDrivers_Selected_listbox, Tab_EventDrivers_Selected_listbox.curselection(), "remove"))
 
 
+#####parameters frame
+Tab_EventDrivers_Parameters=Frame(Tab_EventDrivers_topframe)
+Tab_EventDrivers_Parameters.grid(row=1, column=4)
+Tab_EventDrivers_ParametersLabel=Label(Tab_EventDrivers_Parameters, text="Parameters")
+Tab_EventDrivers_ParametersLabel.grid(row=1, column=1, sticky="NW")
+Tab_EventDrivers_Parameters_Dynamic=Frame(Tab_EventDrivers_Parameters)
+##Tab_EventDrivers_Parameters_Dynamic.bind(<event>, <event handler>)
+##bind events to frame to show parameters
 
+
+#####descriptions frame
 Tab_EventDrivers_Description=Frame(Tab_EventDrivers)
-Tab_EventDrivers_Description.grid(row=2, column=1, sticky="NW")
+Tab_EventDrivers_Description.grid(row=2, column=1, columnspan=5, sticky="NW")
 
 Tab_EventDrivers_DescriptionLabel=Label(Tab_EventDrivers_Description, text="Description", anchor='nw')
 Tab_EventDrivers_DescriptionLabel.grid(row=1, column=1, sticky="NW")
 Tab_EventDrivers_DescriptionText=Text(Tab_EventDrivers_Description, height='6')
 Tab_EventDrivers_DescriptionText.grid(row=2, column=1, sticky="NW")
+
+
+
+
+
+
+
+#####EVENT CULLING FRAME
+#EVENT CULLING
+
+Tab_EventCulling_topframe=Frame(Tab_EventCulling)
+Tab_EventCulling_topframe.grid(row=1, column=1, sticky='nw')
+#Available Event Culling
+Tab_EventCulling_available=Frame(Tab_EventCulling_topframe)
+Tab_EventCulling_available.grid(row=1, column=1)
+
+Tab_EventCulling_topframe_height="20"
+
+Tab_EventCulling_available_label=Label(Tab_EventCulling_available, text="Event Culling", font='bold', anchor='nw')
+Tab_EventCulling_available_label.grid(row=1, column=1, sticky="NW")
+Tab_EventCulling_available_listbox=Listbox(Tab_EventCulling_available, width="30", height=Tab_EventCulling_topframe_height)
+for values in testfeatures[:10]:
+    Tab_EventCulling_available_listbox.insert(END, values)
+Tab_EventCulling_available_listbox.grid(row=2, column=1)
+#####
+
+#####buttons to choose or remove Event culling
+Tab_EventCulling_Buttons=Frame(Tab_EventCulling_topframe)
+Tab_EventCulling_Buttons.grid(row=1, column=2)
+
+Tab_EventCulling_buttonwidth="11"
+
+Tab_EventCulling_Buttons_add=Button(Tab_EventCulling_Buttons, width=Tab_EventCulling_buttonwidth, text="Add", command=todofunc)
+Tab_EventCulling_Buttons_add.grid(row=1, column=1, sticky="NW")
+
+Tab_EventCulling_Buttons_remove=Button(Tab_EventCulling_Buttons, width=Tab_EventCulling_buttonwidth, text="Remove", command=todofunc)
+Tab_EventCulling_Buttons_remove.grid(row=2, column=1, sticky="NW")
+
+Tab_EventCulling_Buttons_clear=Button(Tab_EventCulling_Buttons, width=Tab_EventCulling_buttonwidth, text="Clear", command=todofunc)
+Tab_EventCulling_Buttons_clear.grid(row=3, column=1, sticky="NW")
+#####
+
+#####selected event culling
+Tab_EventCulling_Selected=Frame(Tab_EventCulling_topframe)
+Tab_EventCulling_Selected.grid(row=1, column=3)
+
+Tab_EventCulling_Selected_label=Label(Tab_EventCulling_Selected, text="Selected", font='bold', anchor='nw')
+Tab_EventCulling_Selected_label.grid(row=1, column=1, sticky="W")
+Tab_EventCulling_Selected_listbox=Listbox(Tab_EventCulling_Selected, width="45", height=Tab_EventCulling_topframe_height)
+for values in testfeatures[:2]:
+    Tab_EventCulling_Selected_listbox.insert(END, values)
+Tab_EventCulling_Selected_listbox.grid(row=2, column=1)
+#####
+
+#reconfiguring buttons for event culling
+Tab_EventCulling_Buttons_add.configure(command=\
+    lambda:select_features(Tab_EventCulling_available_listbox, Tab_EventCulling_Selected_listbox, Tab_EventCulling_available_listbox.curselection(), "add"))
+Tab_EventCulling_Buttons_clear.configure(command=\
+    lambda:select_features(None, Tab_EventCulling_Selected_listbox, None, "clear"))
+Tab_EventCulling_Buttons_remove.configure(command=\
+    lambda:select_features(None, Tab_EventCulling_Selected_listbox, Tab_EventCulling_Selected_listbox.curselection(), "remove"))
+
+
+#####parameters frame
+Tab_EventCulling_Parameters=Frame(Tab_EventCulling_topframe)
+Tab_EventCulling_Parameters.grid(row=1, column=4)
+Tab_EventCulling_ParametersLabel=Label(Tab_EventCulling_Parameters, text="Parameters")
+Tab_EventCulling_ParametersLabel.grid(row=1, column=1, sticky="NW")
+Tab_EventCulling_Parameters_Dynamic=Frame(Tab_EventCulling_Parameters)
+##Tab_EventCulling_Parameters_Dynamic.bind(<event>, <event handler>)
+##bind events to frame to show parameters
+
+
+#####descriptions frame
+Tab_EventCulling_Description=Frame(Tab_EventCulling_topframe)
+Tab_EventCulling_Description.grid(row=2, column=1, columnspan=5, sticky="NW")
+
+Tab_EventCulling_DescriptionLabel=Label(Tab_EventCulling_Description, text="Description", anchor='nw')
+Tab_EventCulling_DescriptionLabel.grid(row=1, column=1, sticky="NW")
+Tab_EventCulling_DescriptionText=Text(Tab_EventCulling_Description, height='6')
+Tab_EventCulling_DescriptionText.grid(row=2, column=1, sticky="NW")
+
+
+
+
+
+
+#####REVIEW & PROCESS TAB
+#basic frames structure
+Tab_ReviewProcess_Canonicizers=Frame(Tab_ReviewProcess)
+Tab_ReviewProcess_Canonicizers.grid(row=1, column=1, columnspan=3, sticky="NW")
+
+Tab_ReviewProcess_EventDrivers=Frame(Tab_ReviewProcess)
+Tab_ReviewProcess_EventDrivers.grid(row=2, column=1, sticky="NW")
+
+Tab_ReviewProcess_EventCulling=Frame(Tab_ReviewProcess)
+Tab_ReviewProcess_EventCulling.grid(row=2, column=2, sticky="NW")
+
+Tab_ReviewProcess_AnalysisMethods=Frame(Tab_ReviewProcess)
+Tab_ReviewProcess_AnalysisMethods.grid(row=2, column=3, sticky="NW")
+
+#RP = ReviewProcess
+Tab_RP_Canonicizers_Label=Label(Tab_ReviewProcess_Canonicizers, text="Canonicizers")
+Tab_RP_Canonicizers_Label.grid(row=1, column=1)
+
+Tab_RP_Canonicizers_Listbox=Listbox(Tab_ReviewProcess_Canonicizers)
+Tab_RP_Canonicizers_Listbox.grid(row=2, column=1)
+
+
+
+Tab_RP_EventDrivers_Label=Label(Tab_ReviewProcess_EventDrivers, text="Event Drivers")
+Tab_RP_EventDrivers_Label.grid(row=1, column=1)
+
+Tab_RP_EventDrivers_Listbox=Listbox(Tab_ReviewProcess_EventDrivers)
+Tab_RP_EventDrivers_Listbox.grid(row=2, column=1)
+
+
+
+Tab_RP_EventCulling_Label=Label(Tab_ReviewProcess_EventCulling, text="Event Culling")
+Tab_RP_EventCulling_Label.grid(row=1, column=1)
+
+Tab_RP_EventCulling_Listbox=Listbox(Tab_ReviewProcess_EventCulling)
+Tab_RP_EventCulling_Listbox.grid(row=2, column=1)
+
+
+
+Tab_RP_AnalysisMethods_Label=Label(Tab_ReviewProcess_AnalysisMethods, text="Analysis Methods")
+Tab_RP_AnalysisMethods_Label.grid(row=1, column=1)
+
+Tab_RP_AnalysisMethods_Listbox=Listbox(Tab_ReviewProcess_AnalysisMethods)
+Tab_RP_AnalysisMethods_Listbox.grid(row=2, column=1)
+
+
+
+
 
 
 
