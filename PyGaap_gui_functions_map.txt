@@ -1,0 +1,79 @@
+PyGaap is the Python port of JGAAP, Java Graphical Authorship Attribution Program by Patrick Juola
+See https://evllabs.github.io/JGAAP/
+
+This is a map of widgets and function calls, mostly for the devs to look at.
+**Please use monospaced typefaces/fonts with no word wrap to display this file.
+
+(Rough outline of names for the main GUI frames.)
+
+name                                        description (Tkinter module used)
+
+topwindow                                   name of main window (Tk)
+|-menubar                                   name of top menu bar (Menu)
+|-workspace                                 main Frame under topwindow that contains notebook Tabs (Frame)
+| |-tabs                                    This sets up the tabs (Notebook)
+| | |-Tab_Documents                         Holds widgets in Documents tab (Frame)
+| | | |-Tab_Documents_UnknownAuthors_Frame  Contains Listbox for unknown authors (Frame)
+| | | |-Tab_Documents_doc_buttons           Buttons for unknown authors (Frame)
+| | | |-Tab_Documents_KnownAuthors_Frame    Contains Listbox for unknown authors (Frame)
+| | | |-Tab_Documents_knownauth_buttons     Buttons for known authors (Frame)
+| | |
+| | |-Tab_Canonicizers                      Holds widgets in Canonicizers tab (Frame)
+| | | |-Tab_Canon_Frame                     
+| | | | |-Tab_Canon_Available               Contains the available Canonicizers Listbox (Frame)
+| | | | |-Tab_Canon_Buttons                 (Frame)
+| | | | |-Tab_Canon_Selected                Contains the selected Canonicizers ListBox (Frame)
+| | | |
+| | | |-Tab_Canon_Description               Contains the Description for Canonicizers (Frame)
+| | |
+| | |-Tab_EventDrivers                      Holds widgets in Event Drivers tab (Frame)
+| | | |-Tab_EventDrivers_topframe           Contains Top part of Event Drivers widgets (Frame)
+| | | | |-Tab_EventDrivers_available        Contains available Event Drivers Listbox (Frame)
+| | | | |-Tab_EventDrivers_Buttons          Contains buttons for choosing and clearing Event Drivers (Frame)
+| | | | |-Tab_EventDrivers_Selected         Contains selected Event Drivers Listbox (Frame)
+| | | | |-Tab_EventDrivers_Parameters       Contains the parameters for Event Drivers (Frame)
+| | | |
+| | | |-Tab_EventDrivers_Description        Contains the description for the Event Drivers (Frame)
+| | |
+| | |-Tab_EventCulling                      Same Setup as Event Drivers Tab
+| | | |-Tab_EventCulling_topframe           
+| | | | |-Tab_EventCulling_available        
+| | | | |-Tab_EventCulling_Buttons          
+| | | | |-Tab_EventCulling_Selected         
+| | | | |-Tab_EventCulling_Parameters       
+| | | |
+| | | |-Tab_EventDrivers_Description        Contains the description for the Event Drivers (Frame)
+| | |
+| | |-Tab_AnalysisMethods                   Holds widgets in Analysis Methods tab (Frame)
+| | |-Tab_ReviewProcess                     Holds widgets in Review & Process tab (Frame)
+| | | |-Tab_ReviewProcess_Canonicizers      Contains corresponding listbox
+| | | |-Tab_ReviewProcess_EventDrivers
+| | | |-Tab_ReviewProcess_EventCulling
+| | | |-Tab_ReviewProcess_AnalysisMethods
+| | |
+|-bottomframe                               Hold buttons at the bottom: Notes, Next, and Finish.
+
+
+
+Map of some nested function calls
+
+
+Notepad()
+|--# NotepadWindow_SaveButton
+   |--NotepadWindow_SaveButton -> Notepad_Save(text)
+
+authorsList(.., mode)                               #called when a button in [Tab_Documents_knownauth_buttons] is pressed. The mode distinguishes the buttons.
+|--# AuthorAddDocButton
+|  |--addFile()                                     # opens OS's file browser
+|
+|--# AuthorRmvDocButton
+|  |--select_features(..., "remove")
+|
+|--#AuthorOKButton
+   |--@ if mode=="add":                             # when "Add Author" button is pressed
+   |  authorSave(..., "add")                        # updates global list (backend) of authors and their documents
+   |  |--authorsListUpdater()                       # refreshes the listbox used to display authors
+   |
+   |--@ else if mode=="edit"                        # when "Edit Author" button is pressed
+      authorSave(..., "edit")                       # updates global list (backend) of authors and their documents
+      |--authorsListUpdater()                       # refreshes the listbox used to display authors

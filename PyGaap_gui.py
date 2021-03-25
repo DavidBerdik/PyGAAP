@@ -2,7 +2,7 @@
 #PyGaap is the Python port of JGAAP, Java Graphical Authorship Attribution Program by Patrick Juola
 #See https://evllabs.github.io/JGAAP/
 #
-#2021.03.20
+#2021.03.25
 #Michael Fang, Boston University.
 
 #REQUIRED MODULES BELOW. USE pip OR pip3 IN YOUR TERMINAL TO INSTALL.
@@ -149,7 +149,6 @@ KnownAuthorsList=[]
 
 def authorsListUpdater(listbox):
     """This updates the ListBox from the KnownAuthors python-list"""
-    print("list updater")
     global KnownAuthors
     global KnownAuthorsList
     listbox.delete(0, END)
@@ -175,7 +174,6 @@ def authorSave(window, listbox, author, documentsList, mode):
     #documentsList: list of documents entered in the listbox in the authorsList window
     #mode: add or edit
     global KnownAuthors
-    print("Author Save:", str(window), str(author), str(documentsList), str(mode))
     if mode=="add":
         if (author != None and author.strip() !="") and (documentsList !=None and len(documentsList)!=0):  
             AuthorIndex=0
@@ -194,7 +192,7 @@ def authorSave(window, listbox, author, documentsList, mode):
         if (author[1] != None and author[1].strip() !="") and (documentsList !=None and len(documentsList)!=0):
             AuthorIndex=0
             while AuthorIndex<len(KnownAuthors):
-                if KnownAuthors[AuthorIndex][0]==author:
+                if KnownAuthors[AuthorIndex][0]==author[0]:
                     KnownAuthors[AuthorIndex]=[author[1], documentsList]
                     authorsListUpdater(listbox)
                     window.destroy()
@@ -215,7 +213,6 @@ def authorsList(authorList, mode):
     #authorList: the listbox that displays known authors in the topwindow.
     #authorList calls authorSave (which calls authorListUpdater) when adding/editing author
     #
-    print("AuthorsList, mode=", mode)
     global KnownAuthors
     global KnownAuthorsList
     if mode=="add":
