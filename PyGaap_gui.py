@@ -2,7 +2,7 @@
 #PyGaap is the Python port of JGAAP, Java Graphical Authorship Attribution Program by Patrick Juola
 #See https://evllabs.github.io/JGAAP/
 #
-#2021.03.25
+versiondate="2021.03.30"
 #Michael Fang, Boston University.
 
 #REQUIRED MODULES BELOW. USE pip OR pip3 IN YOUR TERMINAL TO INSTALL.
@@ -21,28 +21,38 @@ topwindow.geometry("1000x620")
 def todofunc(): #place holder "to-do function"
     return None
 
-def select_features(ListBoxAv, ListBoxOp, feature, function):
+def select_features(ListBoxAv, ListBoxOp, feature, function, label=None):
     """Used by Event Drivers, Event culling etc to add/remove/clear selected features.
     Needs to check if feature is already added."""
     #ListBoxAv: "listbox Available", listbox to choose from
-    #ListBoxOp: "listbox operate-on", listbox to modify: the selected listbox.
+    #ListBoxOp: "listbox operate-on", a list of listboxes to modify. Includes the one in the corresponding tab and the
+    #   listbox in the Review & Process tab.
     #feature: is the return of listbox.curselection()
     #function: can be "clear", "remove", or "add"
+    #label is the label to update in case the listbox it refers to cannot be empty:
+    #   e.g. when the canonicizer listbox is empty, update the "Canonicizers" label to show the listbox cannot be empty
     if function=="clear":
-        ListBoxOp.delete(0, END)
+        for listboxmember in ListBoxOp:
+            listboxmember.delete(0, END)
+        #if label != None:
+        #    label.configure(text=label["text"]+" ×")
     elif function=="remove":
         try:
-            ListBoxOp.delete(feature)
+            for listboxmember in ListBoxOp:
+                listboxmember.delete(feature)
+                listboxmember.select_set(END)
+            
+        #    if ListBoxOp[0].size()==0 and label != None:
+        #        label.configure(text=label["text"]+" ×")
         except:
             print("remove from list: nothing selected")
             return None
-        try:
-            ListBoxOp.select_set(END)
-        except:
-            return None
     elif function=="add":
         try:
-            ListBoxOp.insert(END, ListBoxAv.get(feature))
+            for listboxmember in ListBoxOp:
+                listboxmember.insert(END, ListBoxAv.get(feature))
+            #if label != None:
+            #    label.configure(text=label["text"][:-2])
         except:
             print("add to list: nothing selected")
 
@@ -68,6 +78,7 @@ def find_feature(section, directory):
     pass
 
 def displayAbout():
+    global versiondate
     """Displays the About Page"""
     AboutPage=Toplevel()
     AboutPage.title("About PyGaap")
@@ -79,7 +90,7 @@ def displayAbout():
     AboutPage_logo.pack(side="top", fill="both", expand="yes")
 
     textinfo="THIS IS AN UNFINISHED VERSION OF PyGAAP GUI.\n\
-    See source code for version date.\n\
+    Version date: "+versiondate+"\n\
     PyGAAP is a Python port of JGAAP,\n\
     Java Graphical Authorship Attribution Program.\n\
     This is an open-source tool developed by the EVL Lab\n\
@@ -88,8 +99,8 @@ def displayAbout():
     AboutPage_text.pack(side='bottom', fill='both', expand='yes')
     AboutPage.mainloop()
 
-Notes_content=""
 
+Notes_content=""
 
 def notepad():
     """Notes button window"""
@@ -99,21 +110,34 @@ def notepad():
     #NotepadWindow.geometry("600x500")
     NotepadWindow_Textfield=Text(NotepadWindow)
     NotepadWindow_Textfield.insert("1.0", str(Notes_content))
-    NotepadWindow_SaveButton=Button(NotepadWindow, text="Save",\
-        command=lambda:Notepad_Save(NotepadWindow_Textfield.get("1.0", "end-1c")))
-    NotepadWindow_Textfield.pack(padx=1, expand=True)
-    NotepadWindow_SaveButton.pack(padx=1, expand=True)
+    NotepadWindow_SaveButton=Button(NotepadWindow, text="Save & Close",\
+        command=lambda:Notepad_Save(NotepadWindow_Textfield.get("1.0", "end-1c"), NotepadWindow))
+    NotepadWindow_Textfield.pack(padx=7, pady=7, expand=True)
+    NotepadWindow_SaveButton.pack(pady=(0, 12), expand=True)
     NotepadWindow.mainloop()
+    ####Liftwindow when in focus
     return None
 
-def Notepad_Save(text):
+def Notepad_Save(text, window):
     """saves the contents displayed in the notepad textfield when the button is pressed"""
     global Notes_content
     Notes_content=text
+    window.destroy()
     return None
 
-def next_tab(notebook):
-    pass
+def switch_tabs(notebook, mode, tabID=0):
+    if mode=="next":
+        try:
+            notebook.select(notebook.index(notebook.select())+1)
+            return None
+        except:
+            return None
+    elif mode=="choose":
+        try:
+            notebook.select(tabID)
+            return None
+        except:
+            return None
 
 def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
     """Universal add file function to bring up the explorer window"""
@@ -145,7 +169,7 @@ def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
 KnownAuthors=[]
 #KnownAuthors list format: [[author, [file-directory, file-directory]], [author, [file-directory, file directory]]]
 KnownAuthorsList=[]
-#this decides which in the 1-dimensionl listbox is the authora and therefore can be deleted when using delete author
+#this decides which in the 1-dimensionl listbox is the author and therefore can be deleted when using delete author
 
 def authorsListUpdater(listbox):
     """This updates the ListBox from the KnownAuthors python-list"""
@@ -378,8 +402,70 @@ tabs.add(Tab_ReviewProcess, text="Review & Process")
 
 
 #BELOW ARE CONFIGS FOR EACH TAB
-#DOCUMENTS TAB
-Tab_Documents_Language_label=Label(Tab_Documents, text="Language", font='bold', anchor='nw')
+
+#Note: the review & process tab is set-up first instead of last.
+
+#####REVIEW & PROCESS TAB
+#basic frames structure
+
+Tab_ReviewProcess_Canonicizers=Frame(Tab_ReviewProcess)
+Tab_ReviewProcess_Canonicizers.grid(row=1, column=1, columnspan=3, sticky="NW")
+
+Tab_ReviewProcess_EventDrivers=Frame(Tab_ReviewProcess)
+Tab_ReviewProcess_EventDrivers.grid(row=2, column=1, sticky="NW")
+
+Tab_ReviewProcess_EventCulling=Frame(Tab_ReviewProcess)
+Tab_ReviewProcess_EventCulling.grid(row=2, column=2, sticky="NW")
+
+Tab_ReviewProcess_AnalysisMethods=Frame(Tab_ReviewProcess)
+Tab_ReviewProcess_AnalysisMethods.grid(row=2, column=3, sticky="NW")
+
+#RP = ReviewProcess
+listbox_width=37
+listbox_height=12
+
+#note: the buttons below (that redirect to corresponding tabs) have hard-coded tab numbers
+Tab_RP_Canonicizers_Button=Button(Tab_ReviewProcess_Canonicizers, text="Canonicizers", font=("helvetica", 16), relief=FLAT,\
+    command=lambda:switch_tabs(tabs, "choose", 1))
+Tab_RP_Canonicizers_Button.grid(row=1, column=1, pady=(15, 4))
+
+Tab_RP_Canonicizers_Listbox=Listbox(Tab_ReviewProcess_Canonicizers, width=listbox_width*3, height=listbox_height)
+Tab_RP_Canonicizers_Listbox.grid(row=2, column=1, padx=27)
+
+
+
+Tab_RP_EventDrivers_Button=Button(Tab_ReviewProcess_EventDrivers, text="Event Drivers", font=("helvetica", 16), relief=FLAT,\
+    command=lambda:switch_tabs(tabs, "choose", 2))
+Tab_RP_EventDrivers_Button.grid(row=1, column=1, pady=(15, 4))
+
+Tab_RP_EventDrivers_Listbox=Listbox(Tab_ReviewProcess_EventDrivers, width=listbox_width, height=listbox_height)
+Tab_RP_EventDrivers_Listbox.grid(row=2, column=1, padx=(15, 5))
+
+
+
+Tab_RP_EventCulling_Button=Button(Tab_ReviewProcess_EventCulling, text="Event Culling", font=("helvetica", 16), relief=FLAT,\
+    command=lambda:switch_tabs(tabs, "choose", 3))
+Tab_RP_EventCulling_Button.grid(row=1, column=1, pady=(15, 4))
+
+Tab_RP_EventCulling_Listbox=Listbox(Tab_ReviewProcess_EventCulling, width=listbox_width, height=listbox_height)
+Tab_RP_EventCulling_Listbox.grid(row=2, column=1, padx=(5, 5))
+
+
+
+Tab_RP_AnalysisMethods_Button=Button(Tab_ReviewProcess_AnalysisMethods, text="Analysis Methods", font=("helvetica", 16), relief=FLAT,\
+    command=lambda:switch_tabs(tabs, "choose", 4))
+Tab_RP_AnalysisMethods_Button.grid(row=1, column=1, pady=(15, 4))
+
+Tab_RP_AnalysisMethods_Listbox=Listbox(Tab_ReviewProcess_AnalysisMethods, width=listbox_width, height=listbox_height)
+Tab_RP_AnalysisMethods_Listbox.grid(row=2, column=1, padx=(5, 15))
+
+
+
+
+
+
+###############DOCUMENTS TAB
+Tab_Documents_Language_label=Label(Tab_Documents, text="Language", font=("helvetica", 15), anchor='nw')
 Tab_Documents_Language_label.grid(row=1, column=1, sticky='NW')
 
 #documents-language selection
@@ -394,7 +480,7 @@ Tab_Documents_language_dropdown.grid(row=2, column=1, sticky='NW')
 
 
 #documents-unknown authors
-Tab_Documents_UnknownAuthors_label=Label(Tab_Documents, text="Unknown Authors", font='bold', anchor='nw')
+Tab_Documents_UnknownAuthors_label=Label(Tab_Documents, text="Unknown Authors", font=("helvetica", 15), anchor='nw')
 Tab_Documents_UnknownAuthors_label.grid(row=4, column=1, sticky="W")
 
 
@@ -427,7 +513,7 @@ Tab_Documents_UnknownAuthors_AddDoc_Button.grid(row=1, column=1, sticky="W")
 Tab_Documents_UnknownAuthors_RmvDoc_Button.grid(row=1, column=2, sticky="W")
 
 #documents-known authors
-Tab_Documents_KnownAuthors_label=Label(Tab_Documents, text="Known Authors", font='bold', anchor='nw')
+Tab_Documents_KnownAuthors_label=Label(Tab_Documents, text="Known Authors", font=("helvetica", 15), anchor='nw')
 Tab_Documents_KnownAuthors_label.grid(row=7, column=1, sticky="W")
 
 
@@ -472,7 +558,7 @@ Tab_Canon_topsection_height="20"
 Tab_Canon_Available=Frame(Tab_Canon_Frame)
 Tab_Canon_Available.grid(row=1, column=1)
 
-Tab_Canon_Available_label=Label(Tab_Canon_Available, text="Canonicizers", font='bold', anchor='nw')
+Tab_Canon_Available_label=Label(Tab_Canon_Available, text="Canonicizers", font=("helvetica", 15), anchor='nw')
 Tab_Canon_Available_label.grid(row=1, column=1, sticky="NW")
 Tab_Canon_Available_listbox=Listbox(Tab_Canon_Available, width="30", height=Tab_Canon_topsection_height)
 for values in testfeatures[:10]:
@@ -508,25 +594,23 @@ Tab_Canon_Buttons_clear.grid(row=4, column=1, sticky="NW")
 Tab_Canon_Selected=Frame(Tab_Canon_Frame)
 Tab_Canon_Selected.grid(row=1, column=3)
 
-Tab_Canon_Selected_label=Label(Tab_Canon_Selected, text="Selected", font='bold', anchor='nw')
+Tab_Canon_Selected_label=Label(Tab_Canon_Selected, text="Selected", font=("helvetica", 15), anchor='nw')
 Tab_Canon_Selected_label.grid(row=1, column=1, sticky="W")
 Tab_Canon_Selected_listbox=Listbox(Tab_Canon_Selected, width="45", height=Tab_Canon_topsection_height)
-for values in testfeatures[:2]:
-    Tab_Canon_Selected_listbox.insert(END, values)
 Tab_Canon_Selected_listbox.grid(row=2, column=1)
 
 #reconfiguring the buttons after the seleted listboxes are initialized:
-Tab_Canon_Buttons_add.configure(command=lambda:select_features(Tab_Canon_Available_listbox, Tab_Canon_Selected_listbox,\
+Tab_Canon_Buttons_add.configure(command=lambda:select_features(Tab_Canon_Available_listbox, [Tab_Canon_Selected_listbox, Tab_RP_Canonicizers_Listbox],\
     Tab_Canon_Available_listbox.curselection(), "add"))
-Tab_Canon_Buttons_remove.configure(command=lambda:select_features(None, Tab_Canon_Selected_listbox,\
+Tab_Canon_Buttons_remove.configure(command=lambda:select_features(None, [Tab_Canon_Selected_listbox, Tab_RP_Canonicizers_Listbox],\
     Tab_Canon_Selected_listbox.curselection(), "remove"))
-Tab_Canon_Buttons_clear.configure(command=lambda:select_features(None, Tab_Canon_Selected_listbox, None, "clear"))
+Tab_Canon_Buttons_clear.configure(command=lambda:select_features(None, [Tab_Canon_Selected_listbox, Tab_RP_Canonicizers_Listbox], None, "clear"))
 #####
 
 Tab_Canon_Description=Frame(Tab_Canonicizers)
 Tab_Canon_Description.grid(row=2, column=1, sticky="NW")
 
-Tab_Canon_DescriptionLabel=Label(Tab_Canon_Description, text="Description", anchor='nw')
+Tab_Canon_DescriptionLabel=Label(Tab_Canon_Description, text="Description", font=("helvetica", 15), anchor='nw')
 Tab_Canon_DescriptionLabel.grid(row=1, column=1, sticky="NW")
 Tab_Canon_DescriptionText=Text(Tab_Canon_Description, height='6')
 Tab_Canon_DescriptionText.grid(row=2, column=1, sticky="NW")
@@ -542,7 +626,7 @@ Tab_EventDrivers_available.grid(row=1, column=1)
 
 Tab_EventDrivers_topframe_height="20"
 
-Tab_EventDrivers_available_label=Label(Tab_EventDrivers_available, text="Event Drivers", font='bold', anchor='nw')
+Tab_EventDrivers_available_label=Label(Tab_EventDrivers_available, text="Event Drivers", font=("helvetica", 15), anchor='nw')
 Tab_EventDrivers_available_label.grid(row=1, column=1, sticky="NW")
 Tab_EventDrivers_available_listbox=Listbox(Tab_EventDrivers_available, width="30", height=Tab_EventDrivers_topframe_height)
 for values in testfeatures[:10]:
@@ -570,27 +654,25 @@ Tab_EventDrivers_Buttons_clear.grid(row=3, column=1, sticky="NW")
 Tab_EventDrivers_Selected=Frame(Tab_EventDrivers_topframe)
 Tab_EventDrivers_Selected.grid(row=1, column=3)
 
-Tab_EventDrivers_Selected_label=Label(Tab_EventDrivers_Selected, text="Selected", font='bold', anchor='nw')
+Tab_EventDrivers_Selected_label=Label(Tab_EventDrivers_Selected, text="Selected", font=("helvetica", 15), anchor='nw')
 Tab_EventDrivers_Selected_label.grid(row=1, column=1, sticky="W")
 Tab_EventDrivers_Selected_listbox=Listbox(Tab_EventDrivers_Selected, width="45", height=Tab_EventDrivers_topframe_height)
-for values in testfeatures[:2]:
-    Tab_EventDrivers_Selected_listbox.insert(END, values)
 Tab_EventDrivers_Selected_listbox.grid(row=2, column=1)
 #####
 
 #reconfiguring buttons for event drivers
 Tab_EventDrivers_Buttons_add.configure(command=\
-    lambda:select_features(Tab_EventDrivers_available_listbox, Tab_EventDrivers_Selected_listbox, Tab_EventDrivers_available_listbox.curselection(), "add"))
+    lambda:select_features(Tab_EventDrivers_available_listbox, [Tab_EventDrivers_Selected_listbox, Tab_RP_EventDrivers_Listbox], Tab_EventDrivers_available_listbox.curselection(), "add", Tab_RP_EventDrivers_Button))
 Tab_EventDrivers_Buttons_clear.configure(command=\
-    lambda:select_features(None, Tab_EventDrivers_Selected_listbox, None, "clear"))
+    lambda:select_features(None, [Tab_EventDrivers_Selected_listbox, Tab_RP_EventDrivers_Listbox], None, "clear", Tab_RP_EventDrivers_Button))
 Tab_EventDrivers_Buttons_remove.configure(command=\
-    lambda:select_features(None, Tab_EventDrivers_Selected_listbox, Tab_EventDrivers_Selected_listbox.curselection(), "remove"))
+    lambda:select_features(None, [Tab_EventDrivers_Selected_listbox, Tab_RP_EventDrivers_Listbox], Tab_EventDrivers_Selected_listbox.curselection(), "remove", Tab_RP_EventDrivers_Button))
 
 
 #####parameters frame
 Tab_EventDrivers_Parameters=Frame(Tab_EventDrivers_topframe)
 Tab_EventDrivers_Parameters.grid(row=1, column=4)
-Tab_EventDrivers_ParametersLabel=Label(Tab_EventDrivers_Parameters, text="Parameters")
+Tab_EventDrivers_ParametersLabel=Label(Tab_EventDrivers_Parameters, text="Parameters", font=("helvetica", 15))
 Tab_EventDrivers_ParametersLabel.grid(row=1, column=1, sticky="NW")
 Tab_EventDrivers_Parameters_Dynamic=Frame(Tab_EventDrivers_Parameters)
 ##Tab_EventDrivers_Parameters_Dynamic.bind(<event>, <event handler>)
@@ -601,7 +683,7 @@ Tab_EventDrivers_Parameters_Dynamic=Frame(Tab_EventDrivers_Parameters)
 Tab_EventDrivers_Description=Frame(Tab_EventDrivers)
 Tab_EventDrivers_Description.grid(row=2, column=1, columnspan=5, sticky="NW")
 
-Tab_EventDrivers_DescriptionLabel=Label(Tab_EventDrivers_Description, text="Description", anchor='nw')
+Tab_EventDrivers_DescriptionLabel=Label(Tab_EventDrivers_Description, text="Description", font=("helvetica", 15), anchor='nw')
 Tab_EventDrivers_DescriptionLabel.grid(row=1, column=1, sticky="NW")
 Tab_EventDrivers_DescriptionText=Text(Tab_EventDrivers_Description, height='6')
 Tab_EventDrivers_DescriptionText.grid(row=2, column=1, sticky="NW")
@@ -623,7 +705,7 @@ Tab_EventCulling_available.grid(row=1, column=1)
 
 Tab_EventCulling_topframe_height="20"
 
-Tab_EventCulling_available_label=Label(Tab_EventCulling_available, text="Event Culling", font='bold', anchor='nw')
+Tab_EventCulling_available_label=Label(Tab_EventCulling_available, text="Event Culling", font=("helvetica", 15), anchor='nw')
 Tab_EventCulling_available_label.grid(row=1, column=1, sticky="NW")
 Tab_EventCulling_available_listbox=Listbox(Tab_EventCulling_available, width="30", height=Tab_EventCulling_topframe_height)
 for values in testfeatures[:10]:
@@ -651,27 +733,26 @@ Tab_EventCulling_Buttons_clear.grid(row=3, column=1, sticky="NW")
 Tab_EventCulling_Selected=Frame(Tab_EventCulling_topframe)
 Tab_EventCulling_Selected.grid(row=1, column=3)
 
-Tab_EventCulling_Selected_label=Label(Tab_EventCulling_Selected, text="Selected", font='bold', anchor='nw')
+Tab_EventCulling_Selected_label=Label(Tab_EventCulling_Selected, text="Selected", font=("helvetica", 15), anchor='nw')
 Tab_EventCulling_Selected_label.grid(row=1, column=1, sticky="W")
 Tab_EventCulling_Selected_listbox=Listbox(Tab_EventCulling_Selected, width="45", height=Tab_EventCulling_topframe_height)
-for values in testfeatures[:2]:
-    Tab_EventCulling_Selected_listbox.insert(END, values)
+
 Tab_EventCulling_Selected_listbox.grid(row=2, column=1)
 #####
 
 #reconfiguring buttons for event culling
 Tab_EventCulling_Buttons_add.configure(command=\
-    lambda:select_features(Tab_EventCulling_available_listbox, Tab_EventCulling_Selected_listbox, Tab_EventCulling_available_listbox.curselection(), "add"))
+    lambda:select_features(Tab_EventCulling_available_listbox, [Tab_EventCulling_Selected_listbox, Tab_RP_EventCulling_Listbox], Tab_EventCulling_available_listbox.curselection(), "add"))
 Tab_EventCulling_Buttons_clear.configure(command=\
-    lambda:select_features(None, Tab_EventCulling_Selected_listbox, None, "clear"))
+    lambda:select_features(None, [Tab_EventCulling_Selected_listbox, Tab_RP_EventCulling_Listbox], None, "clear"))
 Tab_EventCulling_Buttons_remove.configure(command=\
-    lambda:select_features(None, Tab_EventCulling_Selected_listbox, Tab_EventCulling_Selected_listbox.curselection(), "remove"))
+    lambda:select_features(None, [Tab_EventCulling_Selected_listbox, Tab_RP_EventCulling_Listbox], Tab_EventCulling_Selected_listbox.curselection(), "remove"))
 
 
 #####parameters frame
 Tab_EventCulling_Parameters=Frame(Tab_EventCulling_topframe)
 Tab_EventCulling_Parameters.grid(row=1, column=4)
-Tab_EventCulling_ParametersLabel=Label(Tab_EventCulling_Parameters, text="Parameters")
+Tab_EventCulling_ParametersLabel=Label(Tab_EventCulling_Parameters, text="Parameters", font=("helvetica", 15))
 Tab_EventCulling_ParametersLabel.grid(row=1, column=1, sticky="NW")
 Tab_EventCulling_Parameters_Dynamic=Frame(Tab_EventCulling_Parameters)
 ##Tab_EventCulling_Parameters_Dynamic.bind(<event>, <event handler>)
@@ -682,62 +763,10 @@ Tab_EventCulling_Parameters_Dynamic=Frame(Tab_EventCulling_Parameters)
 Tab_EventCulling_Description=Frame(Tab_EventCulling_topframe)
 Tab_EventCulling_Description.grid(row=2, column=1, columnspan=5, sticky="NW")
 
-Tab_EventCulling_DescriptionLabel=Label(Tab_EventCulling_Description, text="Description", anchor='nw')
+Tab_EventCulling_DescriptionLabel=Label(Tab_EventCulling_Description, text="Description", font=("helvetica", 15), anchor='nw')
 Tab_EventCulling_DescriptionLabel.grid(row=1, column=1, sticky="NW")
 Tab_EventCulling_DescriptionText=Text(Tab_EventCulling_Description, height='6')
 Tab_EventCulling_DescriptionText.grid(row=2, column=1, sticky="NW")
-
-
-
-
-
-
-#####REVIEW & PROCESS TAB
-#basic frames structure
-Tab_ReviewProcess_Canonicizers=Frame(Tab_ReviewProcess)
-Tab_ReviewProcess_Canonicizers.grid(row=1, column=1, columnspan=3, sticky="NW")
-
-Tab_ReviewProcess_EventDrivers=Frame(Tab_ReviewProcess)
-Tab_ReviewProcess_EventDrivers.grid(row=2, column=1, sticky="NW")
-
-Tab_ReviewProcess_EventCulling=Frame(Tab_ReviewProcess)
-Tab_ReviewProcess_EventCulling.grid(row=2, column=2, sticky="NW")
-
-Tab_ReviewProcess_AnalysisMethods=Frame(Tab_ReviewProcess)
-Tab_ReviewProcess_AnalysisMethods.grid(row=2, column=3, sticky="NW")
-
-#RP = ReviewProcess
-Tab_RP_Canonicizers_Label=Label(Tab_ReviewProcess_Canonicizers, text="Canonicizers")
-Tab_RP_Canonicizers_Label.grid(row=1, column=1)
-
-Tab_RP_Canonicizers_Listbox=Listbox(Tab_ReviewProcess_Canonicizers)
-Tab_RP_Canonicizers_Listbox.grid(row=2, column=1)
-
-
-
-Tab_RP_EventDrivers_Label=Label(Tab_ReviewProcess_EventDrivers, text="Event Drivers")
-Tab_RP_EventDrivers_Label.grid(row=1, column=1)
-
-Tab_RP_EventDrivers_Listbox=Listbox(Tab_ReviewProcess_EventDrivers)
-Tab_RP_EventDrivers_Listbox.grid(row=2, column=1)
-
-
-
-Tab_RP_EventCulling_Label=Label(Tab_ReviewProcess_EventCulling, text="Event Culling")
-Tab_RP_EventCulling_Label.grid(row=1, column=1)
-
-Tab_RP_EventCulling_Listbox=Listbox(Tab_ReviewProcess_EventCulling)
-Tab_RP_EventCulling_Listbox.grid(row=2, column=1)
-
-
-
-Tab_RP_AnalysisMethods_Label=Label(Tab_ReviewProcess_AnalysisMethods, text="Analysis Methods")
-Tab_RP_AnalysisMethods_Label.grid(row=1, column=1)
-
-Tab_RP_AnalysisMethods_Listbox=Listbox(Tab_ReviewProcess_AnalysisMethods)
-Tab_RP_AnalysisMethods_Listbox.grid(row=2, column=1)
-
-
 
 
 
@@ -748,8 +777,8 @@ Tab_RP_AnalysisMethods_Listbox.grid(row=2, column=1)
 bottomframe=Frame(topwindow, height=150, width=570)
 bottomframe.pack()
 
-FinishButton=Button(bottomframe, text="Finish & Review", command=todofunc)
-NextButton=Button(bottomframe, text="Next ->", command=todofunc)
+FinishButton=Button(bottomframe, text="Finish & Review", command=lambda:switch_tabs(tabs, "choose", 5))#note: this button has a hard-coded tab number
+NextButton=Button(bottomframe, text="Next ->", command=lambda:switch_tabs(tabs, "next"))
 
 FinishButton.pack(side=RIGHT)
 NextButton.pack(side=RIGHT)
