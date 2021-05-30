@@ -61,9 +61,9 @@ class BM25DriverChinese(AnalysisDriver):
 
 	def train(self, knownDocuments):
 		for root,dirs,files in os.walk(dirname):
-		for f in knownDocuments:
-			corpus.append(tokenization(f))
-			filenames.append(f)
+			for f in knownDocuments:
+				corpus.append(tokenization(f))
+				filenames.append(f)
 		dictionary = corpora.Dictionary(corpus)
 		doc_vectors = [dictionary.doc2bow(text) for text in corpus]
 		vec1 = doc_vectors[0]
