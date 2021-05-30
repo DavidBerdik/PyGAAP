@@ -1,3 +1,4 @@
 dictances
+jieba
 nltk
 numpy
