@@ -39,7 +39,7 @@ class WordSegmentationForChinese(Canonicizer):
 	def displayName():
 		return "Word Segmentation For Chinese"
 		
-class TokenizationChinese(Canonicizer)
+class TokenizationChinese(Canonicizer):
 	def process(self, procText):
 		'''Remove characters or words with these kinds of part of speech'''
 		stop_flag = ['x', 'c', 'u','d', 'p', 't', 'uj', 'm', 'f', 'r']

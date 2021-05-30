@@ -49,7 +49,7 @@ class BM25DriverChinese(AnalysisDriver):
 	dictionary = []
 	average_idf = 0.0
 	def tokenization(filename):
-	'''Remove characters or words with these kinds of part of speech'''
+		'''Remove characters or words with these kinds of part of speech'''
 		stop_flag = ['x', 'c', 'u','d', 'p', 't', 'uj', 'm', 'f', 'r']
 		result = []
 		text = open(filename,"rb").read()
