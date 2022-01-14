@@ -1,27 +1,40 @@
-#My attempt at creating a PyGaap GUI. Unfinished, do not redistribute. (no-one wants to see this)
-#PyGaap is the Python port of JGAAP, Java Graphical Authorship Attribution Program by Patrick Juola
-#See https://evllabs.github.io/JGAAP/
+# My attempt at creating a PyGaap GUI. Unfinished, do not redistribute. (no-one wants to see this)
+# PyGaap is the Python port of JGAAP, Java Graphical Authorship Attribution Program by Patrick Juola
+# For JGAAP see https://evllabs.github.io/JGAAP/
+# 
+############### !! See PyGaap_gui_functions_map.txt for a rough outline of Tkinter widgets and function calls.
 #
-versiondate="2021.03.30"
+versiondate="2022.01.14"
 #Michael Fang, Boston University.
+
+debug=0 # debug level. 0 = no debug info.
 
 #REQUIRED MODULES BELOW. USE pip OR pip3 IN YOUR TERMINAL TO INSTALL.
 
+from cProfile import label
 from tkinter import *
 from tkinter import ttk
+import tkinter
 from tkinter.filedialog import askopenfilename
 
 topwindow=Tk() #this is the top-level window when you first open PyGAAP
 topwindow.title("PyGAAP (GUI, underconstruction)")
-topwindow.geometry("1000x620")
-#topwindow.iconbitmap()
-#topwindow.option_add("*Font", "20")
+dpi=topwindow.winfo_fpixels('1i')
+if dpi>72:
+    topwindow.geometry("1000x670")
+    scrollbar_width=16
+else:
+    topwindow.geometry("2000x1150")
+    scrollbar_width=28
+
+
 
 #BELOW ARE ALL THE FUNCTIONS
 def todofunc(): #place holder "to-do function"
+    print("To-do function")
     return None
 
-def select_features(ListBoxAv, ListBoxOp, feature, function, label=None):
+def select_features(ListBoxAv: tkinter.Listbox, ListBoxOp: list, feature, function: str, label=None):
     """Used by Event Drivers, Event culling etc to add/remove/clear selected features.
     Needs to check if feature is already added."""
     #ListBoxAv: "listbox Available", listbox to choose from
@@ -29,7 +42,7 @@ def select_features(ListBoxAv, ListBoxOp, feature, function, label=None):
     #   listbox in the Review & Process tab.
     #feature: is the return of listbox.curselection()
     #function: can be "clear", "remove", or "add"
-    #label is the label to update in case the listbox it refers to cannot be empty:
+    #label is the label to modify to indicate a listbox it refers to is empty when it shouldn't be.
     #   e.g. when the canonicizer listbox is empty, update the "Canonicizers" label to show the listbox cannot be empty
     if function=="clear":
         for listboxmember in ListBoxOp:
@@ -45,7 +58,8 @@ def select_features(ListBoxAv, ListBoxOp, feature, function, label=None):
         #    if ListBoxOp[0].size()==0 and label != None:
         #        label.configure(text=label["text"]+" ×")
         except:
-            print("remove from list: nothing selected")
+            if debug>0:
+                print("remove from list: nothing selected or empty list.")
             return None
     elif function=="add":
         try:
@@ -54,13 +68,68 @@ def select_features(ListBoxAv, ListBoxOp, feature, function, label=None):
             #if label != None:
             #    label.configure(text=label["text"][:-2])
         except:
-            print("add to list: nothing selected")
-
+            if debug>0:
+                print("add to list: nothing selected")
+    #print(ListBoxOp[0].get(0, ListBoxOp[0].size()))
     return None
 
-def find_parameters(feature):
+
+def find_parameters(frame_to_update: tkinter.Frame, listbox: tkinter.Listbox, displayed_params: list, list_of_params: dict=None, clear: bool=False):
     """find parameters in some features to display and set"""
-    pass
+    # feature: individual event drivers, event culling, or analysis methods.
+    # frame_to_update: the tkinter frame that displays the parameters.
+    # listbox: the tkinter listbox that has the selected parameters.
+    # displayed_params: a list of currently displayed parameter options.
+    # list_of_params: list of available parameters for each feature. This will be generated or read from the backend. If None, will use a test list.
+    
+    # DO NOT ASSIGN NEW list_of_params. ONLY USE LIST METHODS ON THIS.
+
+    if list_of_params==None:
+        list_of_params={"first": [{"options": range(1, 20), "default": 1, "type": "Entry", "label": "first, param 1"},
+            {"options": ["option1", "option2"], "default": 0, "type": "OptionMenu", "label": "first, param 2"}],
+            "fifth": [{"options": range(0, 10), "default": 0, "type": "Entry", "label": "fifth, param 1"}]}
+        # structure: dictionary of list [features] of dictionaries [parameters]
+        # the "default" item is always used as a key to "options".
+        # i.e. the default value of an entry is always "options"["default"] and never "default".value.
+    
+    # first get the parameters to display from list.
+    if len(listbox.curselection())>0:
+        print("using place-holder parameters list")
+        parameters_to_display=list_of_params.get(listbox.get(listbox.curselection()))
+    else: return None
+    
+    
+    for params in displayed_params:
+        params.destroy()
+    displayed_params.clear()
+    if clear==True:
+        return None
+
+    param_options=[] # list of StringVar s.
+
+    if parameters_to_display==None: # if this feature does not have parameters to be set
+        displayed_params.append(Label(frame_to_update, text="No parameters for this feature."))
+        displayed_params[-1].pack()
+    else:
+        for i in range(len(parameters_to_display)):
+            param_options.append(StringVar(value=str(parameters_to_display[i]['options'][parameters_to_display[i]['default']])))
+            displayed_params.append(Label(frame_to_update, text=parameters_to_display[i]['label']))
+            displayed_params[-1].grid(row=i+1, column=0)
+
+            if parameters_to_display[i]['type']=='Entry':
+                displayed_params.append(Entry(frame_to_update))
+                displayed_params[-1].insert(0, str(parameters_to_display[i]['options'][parameters_to_display[i]['default']]))
+                displayed_params[-1].grid(row=i+1, column=1)
+            elif parameters_to_display[i]['type']=='OptionMenu':
+                displayed_params.append(OptionMenu(frame_to_update, param_options[-1], *parameters_to_display[i]['options']))
+                displayed_params[-1].grid(row=i+1, column=1)
+        
+        displayed_params.append(Label(frame_to_update, text='Parameters for: '+str(listbox.get(listbox.curselection()))))
+        displayed_params[-1].grid(row=0, column=0)
+
+
+    return None
+    
 
 def find_feature(section, directory):
     """Universal find feature function for:
@@ -77,12 +146,28 @@ def find_feature(section, directory):
     #directory: where to parse the file tree to find the features.
     pass
 
+def process():
+    """Process all input files with the parameters in all tabs."""
+    print("Process: to-do")
+    return None
+
+
+AboutPage=None
 def displayAbout():
     global versiondate
+    global AboutPage
     """Displays the About Page"""
+    try:
+        AboutPage.lift()
+        return None
+    except:
+        pass
     AboutPage=Toplevel()
     AboutPage.title("About PyGaap")
-    AboutPage.geometry("600x300")
+    if dpi>72:
+        AboutPage.geometry("600x300")
+    else:
+        AboutPage.geometry("1200x600")
     AboutPage.resizable(False, False)
     AboutPage_logosource=PhotoImage(file="logo.png")
     AboutPage_logosource=AboutPage_logosource.subsample(2, 2)
@@ -101,21 +186,26 @@ def displayAbout():
 
 
 Notes_content=""
+NotepadWindow=None
 
 def notepad():
     """Notes button window"""
     global Notes_content
-    NotepadWindow=Toplevel()
-    NotepadWindow.title("Notes")
-    #NotepadWindow.geometry("600x500")
-    NotepadWindow_Textfield=Text(NotepadWindow)
-    NotepadWindow_Textfield.insert("1.0", str(Notes_content))
-    NotepadWindow_SaveButton=Button(NotepadWindow, text="Save & Close",\
-        command=lambda:Notepad_Save(NotepadWindow_Textfield.get("1.0", "end-1c"), NotepadWindow))
-    NotepadWindow_Textfield.pack(padx=7, pady=7, expand=True)
-    NotepadWindow_SaveButton.pack(pady=(0, 12), expand=True)
-    NotepadWindow.mainloop()
-    ####Liftwindow when in focus
+    global NotepadWindow
+    # prevents spam-spawning. took me way too long to figure this out
+    try:
+        NotepadWindow.lift()
+    except:
+        NotepadWindow=Toplevel()
+        NotepadWindow.title("Notes")
+        #NotepadWindow.geometry("600x500")
+        NotepadWindow_Textfield=Text(NotepadWindow)
+        NotepadWindow_Textfield.insert("1.0", str(Notes_content))
+        NotepadWindow_SaveButton=Button(NotepadWindow, text="Save & Close",\
+            command=lambda:Notepad_Save(NotepadWindow_Textfield.get("1.0", "end-1c"), NotepadWindow))
+        NotepadWindow_Textfield.pack(padx=7, pady=7, expand=True)
+        NotepadWindow_SaveButton.pack(pady=(0, 12), expand=True)
+        NotepadWindow.mainloop()
     return None
 
 def Notepad_Save(text, window):
@@ -126,9 +216,17 @@ def Notepad_Save(text, window):
     return None
 
 def switch_tabs(notebook, mode, tabID=0):
+    """called by the next button and the tab lables themselves.
+    if called by next button, returns the next tab. if called by tab label click, gets that tab"""
     if mode=="next":
         try:
             notebook.select(notebook.index(notebook.select())+1)
+            return None
+        except:
+            return None
+    elif mode=="previous":
+        try:
+            notebook.select(notebook.index(notebook.select())-1)
             return None
         except:
             return None
@@ -146,18 +244,21 @@ def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
     #AllowDuplicates is whether the listbox allows duplicates.
     #if listbox does not allow duplicates, item won't be added to the listbox and this prints a message to the terminal.
     #liftwindow is the window to go back to focus when the file browser closes
+    if debug>=1:
+        print("addFile")
     filename=askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")), title=WindowTitle)
     if liftwindow != None:
         liftwindow.lift(topwindow)
-    if AllowDuplicates and filename !="":
+    if AllowDuplicates and filename !="" and len(filename)>0:
         ListboxOp.insert(END, filename)
     else:
         for fileinlist in ListboxOp.get(0, END):
             if fileinlist==filename:
-                print("Add document: file already in list")
+                if debug>0:
+                    print("Add document: file already in list")
                 liftwindow.lift()
                 return None
-        if filename != None:
+        if filename != None and filename !="" and len(filename)>0:
             ListboxOp.insert(END, filename)
 
     if liftwindow != None:
@@ -167,9 +268,10 @@ def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
 
 
 KnownAuthors=[]
-#KnownAuthors list format: [[author, [file-directory, file-directory]], [author, [file-directory, file directory]]]
+# KnownAuthors list format: [[author, [file-directory, file-directory]], [author, [file-directory, file directory]]]
 KnownAuthorsList=[]
-#this decides which in the 1-dimensionl listbox is the author and therefore can be deleted when using delete author
+# this decides which in the 1-dimensionl listbox is the author and therefore can be deleted when using delete author
+# format: [0, -1, -1. -1, 1, -1, ..., 2, -1, ..., 3, -1, ...] -1=not author; >=0: author index.
 
 def authorsListUpdater(listbox):
     """This updates the ListBox from the KnownAuthors python-list"""
@@ -229,6 +331,8 @@ def authorSave(window, listbox, author, documentsList, mode):
     window.destroy()
     return None
 
+AuthorWindow=None
+
 def authorsList(authorList, mode):
     """Add, edit or remove authors
     This updates the global KnownAuthors list.
@@ -239,6 +343,7 @@ def authorsList(authorList, mode):
     #
     global KnownAuthors
     global KnownAuthorsList
+
     if mode=="add":
         title="Add Author"
         mode='add'
@@ -256,7 +361,8 @@ def authorsList(authorList, mode):
                 insertAuthor=KnownAuthors[selected][0]#original author name
                 insertDocs=KnownAuthors[selected][1]#original list of documents
         except:
-            print("edit author: nothing selected")
+            if debug>0:
+                print("edit author: nothing selected")
             return None
 
     elif mode=="remove":#remove author does not open a window
@@ -274,7 +380,8 @@ def authorsList(authorList, mode):
                 authorsListUpdater(authorList)
 
         except:
-            print("remove author: nothing selected")
+            if debug>0:
+                print("remove author: nothing selected")
             return None
         return None
     else:
@@ -282,13 +389,19 @@ def authorsList(authorList, mode):
         assert mode=="add" or mode=="remove" or mode=="edit"
         return None
 
+    global AuthorWindow
+    
     AuthorWindow=Toplevel()
     AuthorWindow.grab_set()#Disables main window when the add/edit author window appears
     AuthorWindow.title(title)
-    AuthorWindow.geometry("550x330")
+    if dpi>72:
+        AuthorWindow.geometry("550x340")
+    else:
+        AuthorWindow.geometry("1170x590")
 
-    AuthorNameLabel=Label(AuthorWindow, text="Author", font="bold")
-    AuthorNameLabel.grid(row=1, column=1, pady=7, sticky="NW")
+
+    AuthorNameLabel=Label(AuthorWindow, text="Author", font="bold", padx=10).grid(row=1, column=1, pady=7, sticky="NW")
+    AuthorFilesLabel=Label(AuthorWindow, text="Files", font="bold", padx=10).grid(row=2, column=1, pady=7, sticky="NW")
 
     AuthorNameEntry=Entry(AuthorWindow, width=40)
     if mode=="edit":
@@ -330,8 +443,17 @@ def authorsList(authorList, mode):
 
 #ABOVE ARE ALL THE FUNCTIONS
 
+
+
+
+
+
+
 #Test List for features
-testfeatures=["first", "second", "third", "fourth", 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth']
+testfeatures=["first", "second", "third", "fourth", 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth']\
+    +list(range(50))
+# test dictionary of feature's parameters. keys are feature index in the list above (test list of features.)
+testfeatures_parameters={"first": ["param 1", "param 2"], "fifth": ["param 1", "param 2", "param 3"], "eleventh": ["param 1", "param 2"]}
 
 menubar=Menu(topwindow)#adds top menu bar
 filemenu=Menu(menubar, tearoff=0)
@@ -367,7 +489,7 @@ tabs=ttk.Notebook(workspace)
 tabs.pack(pady=1, expand=True)
 
 #size for all the main tabs.
-tabheight=550
+tabheight=570
 tabwidth=1000
 
 
@@ -420,6 +542,7 @@ Tab_ReviewProcess_EventCulling.grid(row=2, column=2, sticky="NW")
 Tab_ReviewProcess_AnalysisMethods=Frame(Tab_ReviewProcess)
 Tab_ReviewProcess_AnalysisMethods.grid(row=2, column=3, sticky="NW")
 
+
 #RP = ReviewProcess
 listbox_width=37
 listbox_height=12
@@ -459,14 +582,16 @@ Tab_RP_AnalysisMethods_Button.grid(row=1, column=1, pady=(15, 4))
 Tab_RP_AnalysisMethods_Listbox=Listbox(Tab_ReviewProcess_AnalysisMethods, width=listbox_width, height=listbox_height)
 Tab_RP_AnalysisMethods_Listbox.grid(row=2, column=1, padx=(5, 15))
 
+Tab_RP_Process_Button=Button(Tab_ReviewProcess, text="Process", command=process)
+Tab_RP_Process_Button.grid(row=3, columnspan=4, sticky="se", pady=20, padx=20)
 
 
 
 
+############### DOCUMENTS TAB ########################################################################################################################
 
-###############DOCUMENTS TAB
 Tab_Documents_Language_label=Label(Tab_Documents, text="Language", font=("helvetica", 15), anchor='nw')
-Tab_Documents_Language_label.grid(row=1, column=1, sticky='NW')
+Tab_Documents_Language_label.grid(row=1, column=1, sticky='NW', pady=(20, 5))
 
 #documents-language selection
 analysisLanguage=StringVar()
@@ -481,7 +606,7 @@ Tab_Documents_language_dropdown.grid(row=2, column=1, sticky='NW')
 
 #documents-unknown authors
 Tab_Documents_UnknownAuthors_label=Label(Tab_Documents, text="Unknown Authors", font=("helvetica", 15), anchor='nw')
-Tab_Documents_UnknownAuthors_label.grid(row=4, column=1, sticky="W")
+Tab_Documents_UnknownAuthors_label.grid(row=4, column=1, sticky="W", pady=(20, 10))
 
 
 Tab_Documents_UnknownAuthors_Frame=Frame(Tab_Documents)
@@ -489,7 +614,7 @@ Tab_Documents_UnknownAuthors_Frame.grid(row=5, column=1, sticky="W")
 
 
 Tab_Documents_UnknownAuthors_listbox=Listbox(Tab_Documents_UnknownAuthors_Frame, width="100")
-Tab_Documents_UnknownAuthors_listscrollbar=Scrollbar(Tab_Documents_UnknownAuthors_Frame)
+Tab_Documents_UnknownAuthors_listscrollbar=Scrollbar(Tab_Documents_UnknownAuthors_Frame, width=scrollbar_width)
 #loop below: to be removed
 for values in testfeatures[:5]:
     Tab_Documents_UnknownAuthors_listbox.insert(END, values)
@@ -507,14 +632,14 @@ Tab_Documents_doc_buttons.grid(row=6, column=1, sticky="W")
 Tab_Documents_UnknownAuthors_AddDoc_Button=Button(Tab_Documents_doc_buttons, text="Add Document", width="16", command=\
     lambda:addFile("Add a document to Unknown Authors", Tab_Documents_UnknownAuthors_listbox, False))
 Tab_Documents_UnknownAuthors_RmvDoc_Button=Button(Tab_Documents_doc_buttons, text="Remove Document", width="16", command=\
-    lambda:select_features(None, Tab_Documents_UnknownAuthors_listbox, Tab_Documents_UnknownAuthors_listbox.curselection(), "remove"))
+    lambda:select_features(None, [Tab_Documents_UnknownAuthors_listbox], Tab_Documents_UnknownAuthors_listbox.curselection(), "remove"))
 
 Tab_Documents_UnknownAuthors_AddDoc_Button.grid(row=1, column=1, sticky="W")
 Tab_Documents_UnknownAuthors_RmvDoc_Button.grid(row=1, column=2, sticky="W")
 
 #documents-known authors
 Tab_Documents_KnownAuthors_label=Label(Tab_Documents, text="Known Authors", font=("helvetica", 15), anchor='nw')
-Tab_Documents_KnownAuthors_label.grid(row=7, column=1, sticky="W")
+Tab_Documents_KnownAuthors_label.grid(row=7, column=1, sticky="W", pady=(20, 10))
 
 
 Tab_Documents_KnownAuthors_Frame=Frame(Tab_Documents)
@@ -522,7 +647,7 @@ Tab_Documents_KnownAuthors_Frame.grid(row=8, column=1, sticky="W")
 
 
 Tab_Documents_KnownAuthors_listbox=Listbox(Tab_Documents_KnownAuthors_Frame, width="100")
-Tab_Documents_KnownAuthors_listscroller=Scrollbar(Tab_Documents_KnownAuthors_Frame)
+Tab_Documents_KnownAuthors_listscroller=Scrollbar(Tab_Documents_KnownAuthors_Frame, width=scrollbar_width)
 
 Tab_Documents_KnownAuthors_listbox.config(yscrollcommand=Tab_Documents_KnownAuthors_listscroller.set)
 Tab_Documents_KnownAuthors_listscroller.config(command=Tab_Documents_KnownAuthors_listbox.yview)
@@ -547,7 +672,7 @@ Tab_Documents_KnownAuthors_RmvAuth_Button.grid(row=1, column=3, sticky="W")
 
 
 
-#CANONICIZERS TAB
+# CANONICIZERS TAB #######################################################################################################################################
 Tab_Canon_Frame=Frame(Tab_Canonicizers)
 Tab_Canon_Frame.grid(row=1, column=1)
 
@@ -559,11 +684,23 @@ Tab_Canon_Available=Frame(Tab_Canon_Frame)
 Tab_Canon_Available.grid(row=1, column=1)
 
 Tab_Canon_Available_label=Label(Tab_Canon_Available, text="Canonicizers", font=("helvetica", 15), anchor='nw')
-Tab_Canon_Available_label.grid(row=1, column=1, sticky="NW")
-Tab_Canon_Available_listbox=Listbox(Tab_Canon_Available, width="30", height=Tab_Canon_topsection_height)
-for values in testfeatures[:10]:
+Tab_Canon_Available_label.grid(row=1, column=1, sticky="NW", pady=(10, 5))
+
+Tab_Canon_Available_listbox_frame=Frame(Tab_Canon_Available)
+Tab_Canon_Available_listbox=Listbox(Tab_Canon_Available_listbox_frame, width="30", height=Tab_Canon_topsection_height)
+
+Tab_Canon_Available_listbox_listscrollbar=Scrollbar(Tab_Canon_Available_listbox_frame, width=scrollbar_width)
+Tab_Canon_Available_listbox_listscrollbar.pack(side=RIGHT, fill=BOTH)
+
+Tab_Canon_Available_listbox.config(yscrollcommand=Tab_Canon_Available_listbox_listscrollbar.set)
+Tab_Canon_Available_listbox_listscrollbar.config(command=Tab_Canon_Available_listbox.yview)
+
+
+for values in testfeatures:
     Tab_Canon_Available_listbox.insert(END, values)
-Tab_Canon_Available_listbox.grid(row=2, column=1)
+#Tab_Canon_Available_listbox.grid(row=2, column=1)
+Tab_Canon_Available_listbox.pack()
+Tab_Canon_Available_listbox_frame.grid(row=2, column=1)
 #####
 
 
@@ -595,8 +732,8 @@ Tab_Canon_Selected=Frame(Tab_Canon_Frame)
 Tab_Canon_Selected.grid(row=1, column=3)
 
 Tab_Canon_Selected_label=Label(Tab_Canon_Selected, text="Selected", font=("helvetica", 15), anchor='nw')
-Tab_Canon_Selected_label.grid(row=1, column=1, sticky="W")
-Tab_Canon_Selected_listbox=Listbox(Tab_Canon_Selected, width="45", height=Tab_Canon_topsection_height)
+Tab_Canon_Selected_label.grid(row=1, column=1, sticky="W", pady=(10, 5))
+Tab_Canon_Selected_listbox=Listbox(Tab_Canon_Selected, width="38", height=Tab_Canon_topsection_height)
 Tab_Canon_Selected_listbox.grid(row=2, column=1)
 
 #reconfiguring the buttons after the seleted listboxes are initialized:
@@ -616,7 +753,7 @@ Tab_Canon_DescriptionText=Text(Tab_Canon_Description, height='6')
 Tab_Canon_DescriptionText.grid(row=2, column=1, sticky="NW")
 
 
-#EVENT DRIVERS
+# EVENT DRIVERS TAB #######################################################################################################################################
 
 Tab_EventDrivers_topframe=Frame(Tab_EventDrivers)
 Tab_EventDrivers_topframe.grid(row=1, column=1, sticky='nw')
@@ -627,11 +764,22 @@ Tab_EventDrivers_available.grid(row=1, column=1)
 Tab_EventDrivers_topframe_height="20"
 
 Tab_EventDrivers_available_label=Label(Tab_EventDrivers_available, text="Event Drivers", font=("helvetica", 15), anchor='nw')
-Tab_EventDrivers_available_label.grid(row=1, column=1, sticky="NW")
-Tab_EventDrivers_available_listbox=Listbox(Tab_EventDrivers_available, width="30", height=Tab_EventDrivers_topframe_height)
-for values in testfeatures[:10]:
+Tab_EventDrivers_available_label.grid(row=1, column=1, sticky="NW", pady=(10, 5))
+
+Tab_EventDrivers_available_listbox_frame=Frame(Tab_EventDrivers_available)
+Tab_EventDrivers_available_listbox=Listbox(Tab_EventDrivers_available_listbox_frame, width="30", height=Tab_EventDrivers_topframe_height)
+Tab_EventDrivers_available_listbox_listscrollbar=Scrollbar(Tab_EventDrivers_available_listbox_frame, width=scrollbar_width)
+Tab_EventDrivers_available_listbox_listscrollbar.pack(side=RIGHT, fill=BOTH)
+
+Tab_EventDrivers_available_listbox.config(yscrollcommand=Tab_EventDrivers_available_listbox_listscrollbar.set)
+Tab_EventDrivers_available_listbox_listscrollbar.config(command=Tab_EventDrivers_available_listbox.yview)
+
+
+for values in testfeatures:
     Tab_EventDrivers_available_listbox.insert(END, values)
-Tab_EventDrivers_available_listbox.grid(row=2, column=1)
+
+Tab_EventDrivers_available_listbox.pack()
+Tab_EventDrivers_available_listbox_frame.grid(row=2, column=1)
 #####
 
 #####buttons to choose or remove Event drivers
@@ -655,8 +803,8 @@ Tab_EventDrivers_Selected=Frame(Tab_EventDrivers_topframe)
 Tab_EventDrivers_Selected.grid(row=1, column=3)
 
 Tab_EventDrivers_Selected_label=Label(Tab_EventDrivers_Selected, text="Selected", font=("helvetica", 15), anchor='nw')
-Tab_EventDrivers_Selected_label.grid(row=1, column=1, sticky="W")
-Tab_EventDrivers_Selected_listbox=Listbox(Tab_EventDrivers_Selected, width="45", height=Tab_EventDrivers_topframe_height)
+Tab_EventDrivers_Selected_label.grid(row=1, column=1, sticky="W", pady=(10, 5))
+Tab_EventDrivers_Selected_listbox=Listbox(Tab_EventDrivers_Selected, width="38", height=Tab_EventDrivers_topframe_height)
 Tab_EventDrivers_Selected_listbox.grid(row=2, column=1)
 #####
 
@@ -671,20 +819,27 @@ Tab_EventDrivers_Buttons_remove.configure(command=\
 
 #####parameters frame
 Tab_EventDrivers_Parameters=Frame(Tab_EventDrivers_topframe)
-Tab_EventDrivers_Parameters.grid(row=1, column=4)
+Tab_EventDrivers_Parameters.grid(row=1, column=4, rowspan=5, sticky=NW)
 Tab_EventDrivers_ParametersLabel=Label(Tab_EventDrivers_Parameters, text="Parameters", font=("helvetica", 15))
-Tab_EventDrivers_ParametersLabel.grid(row=1, column=1, sticky="NW")
-Tab_EventDrivers_Parameters_Dynamic=Frame(Tab_EventDrivers_Parameters)
-##Tab_EventDrivers_Parameters_Dynamic.bind(<event>, <event handler>)
-##bind events to frame to show parameters
+Tab_EventDrivers_ParametersLabel.pack(pady=(10, 5), anchor=NW)
 
+Tab_EventDrivers_Parameters_parameters_frame=Frame(Tab_EventDrivers_Parameters, relief=SUNKEN)
+Tab_EventDrivers_Parameters_parameters_frame.pack()
+
+Tab_EventDrivers_Parameters_parameters_displayed=[]
+
+Tab_EventDrivers_Selected_listbox.bind("<<ListboxSelect>>",\
+    lambda event, frame=Tab_EventDrivers_Parameters_parameters_frame, lb=Tab_EventDrivers_Selected_listbox, dp=Tab_EventDrivers_Parameters_parameters_displayed:find_parameters(frame, lb, dp, None))
+Tab_EventDrivers_Selected_listbox.bind("<Unmap>",\
+    lambda event, frame=Tab_EventDrivers_Parameters_parameters_frame, lb=Tab_EventDrivers_Selected_listbox, dp=Tab_EventDrivers_Parameters_parameters_displayed:find_parameters(frame, lb, dp))
+#lambda:find_parameters(feature, listbox, listofparams, frametoupdate)
 
 #####descriptions frame
 Tab_EventDrivers_Description=Frame(Tab_EventDrivers)
 Tab_EventDrivers_Description.grid(row=2, column=1, columnspan=5, sticky="NW")
 
 Tab_EventDrivers_DescriptionLabel=Label(Tab_EventDrivers_Description, text="Description", font=("helvetica", 15), anchor='nw')
-Tab_EventDrivers_DescriptionLabel.grid(row=1, column=1, sticky="NW")
+Tab_EventDrivers_DescriptionLabel.grid(row=1, column=1, sticky="NW", pady=(10, 5))
 Tab_EventDrivers_DescriptionText=Text(Tab_EventDrivers_Description, height='6')
 Tab_EventDrivers_DescriptionText.grid(row=2, column=1, sticky="NW")
 
@@ -694,7 +849,7 @@ Tab_EventDrivers_DescriptionText.grid(row=2, column=1, sticky="NW")
 
 
 
-#####EVENT CULLING FRAME
+##### EVENT CULLING TAB #################################################################################################################################
 #EVENT CULLING
 
 Tab_EventCulling_topframe=Frame(Tab_EventCulling)
@@ -706,11 +861,21 @@ Tab_EventCulling_available.grid(row=1, column=1)
 Tab_EventCulling_topframe_height="20"
 
 Tab_EventCulling_available_label=Label(Tab_EventCulling_available, text="Event Culling", font=("helvetica", 15), anchor='nw')
-Tab_EventCulling_available_label.grid(row=1, column=1, sticky="NW")
-Tab_EventCulling_available_listbox=Listbox(Tab_EventCulling_available, width="30", height=Tab_EventCulling_topframe_height)
-for values in testfeatures[:10]:
+Tab_EventCulling_available_label.grid(row=1, column=1, sticky="NW", pady=(10, 5))
+Tab_EventCulling_available_listbox_frame=Frame(Tab_EventCulling_available)
+Tab_EventCulling_available_listbox=Listbox(Tab_EventCulling_available_listbox_frame, width="30", height=Tab_EventCulling_topframe_height)
+Tab_EventCulling_available_listbox_listscrollbar=Scrollbar(Tab_EventCulling_available_listbox_frame, width=scrollbar_width)
+
+
+Tab_EventCulling_available_listbox.config(yscrollcommand=Tab_EventCulling_available_listbox_listscrollbar.set)
+Tab_EventCulling_available_listbox_listscrollbar.config(command=Tab_EventCulling_available_listbox.yview)
+
+
+for values in testfeatures:
     Tab_EventCulling_available_listbox.insert(END, values)
-Tab_EventCulling_available_listbox.grid(row=2, column=1)
+Tab_EventCulling_available_listbox_listscrollbar.pack(side=RIGHT, fill=BOTH)
+Tab_EventCulling_available_listbox.pack()
+Tab_EventCulling_available_listbox_frame.grid(row=2, column=1)
 #####
 
 #####buttons to choose or remove Event culling
@@ -734,8 +899,8 @@ Tab_EventCulling_Selected=Frame(Tab_EventCulling_topframe)
 Tab_EventCulling_Selected.grid(row=1, column=3)
 
 Tab_EventCulling_Selected_label=Label(Tab_EventCulling_Selected, text="Selected", font=("helvetica", 15), anchor='nw')
-Tab_EventCulling_Selected_label.grid(row=1, column=1, sticky="W")
-Tab_EventCulling_Selected_listbox=Listbox(Tab_EventCulling_Selected, width="45", height=Tab_EventCulling_topframe_height)
+Tab_EventCulling_Selected_label.grid(row=1, column=1, sticky="W", pady=(10, 5))
+Tab_EventCulling_Selected_listbox=Listbox(Tab_EventCulling_Selected, width="38", height=Tab_EventCulling_topframe_height)
 
 Tab_EventCulling_Selected_listbox.grid(row=2, column=1)
 #####
@@ -751,12 +916,12 @@ Tab_EventCulling_Buttons_remove.configure(command=\
 
 #####parameters frame
 Tab_EventCulling_Parameters=Frame(Tab_EventCulling_topframe)
-Tab_EventCulling_Parameters.grid(row=1, column=4)
+Tab_EventCulling_Parameters.grid(row=1, column=4, sticky=NW)
 Tab_EventCulling_ParametersLabel=Label(Tab_EventCulling_Parameters, text="Parameters", font=("helvetica", 15))
-Tab_EventCulling_ParametersLabel.grid(row=1, column=1, sticky="NW")
-Tab_EventCulling_Parameters_Dynamic=Frame(Tab_EventCulling_Parameters)
-##Tab_EventCulling_Parameters_Dynamic.bind(<event>, <event handler>)
-##bind events to frame to show parameters
+Tab_EventCulling_ParametersLabel.pack(pady=(10, 5))
+Tab_EventCulling_Parameters_Dynamic=Frame(Tab_EventCulling_Parameters, relief=SUNKEN)
+Tab_EventCulling_Parameters_Dynamic.pack()
+
 
 
 #####descriptions frame
@@ -764,9 +929,14 @@ Tab_EventCulling_Description=Frame(Tab_EventCulling_topframe)
 Tab_EventCulling_Description.grid(row=2, column=1, columnspan=5, sticky="NW")
 
 Tab_EventCulling_DescriptionLabel=Label(Tab_EventCulling_Description, text="Description", font=("helvetica", 15), anchor='nw')
-Tab_EventCulling_DescriptionLabel.grid(row=1, column=1, sticky="NW")
+Tab_EventCulling_DescriptionLabel.grid(row=1, column=1, sticky="NW", pady=(10, 5))
 Tab_EventCulling_DescriptionText=Text(Tab_EventCulling_Description, height='6')
 Tab_EventCulling_DescriptionText.grid(row=2, column=1, sticky="NW")
+
+
+# ANALYSIS METHODS TAB #######################################################################################################################################
+
+# todo
 
 
 
@@ -778,10 +948,12 @@ bottomframe=Frame(topwindow, height=150, width=570)
 bottomframe.pack()
 
 FinishButton=Button(bottomframe, text="Finish & Review", command=lambda:switch_tabs(tabs, "choose", 5))#note: this button has a hard-coded tab number
-NextButton=Button(bottomframe, text="Next ->", command=lambda:switch_tabs(tabs, "next"))
+PreviousButton=Button(bottomframe, text="🠔 Previous", command=lambda:switch_tabs(tabs, "previous"))
+NextButton=Button(bottomframe, text="Next ➞", command=lambda:switch_tabs(tabs, "next"))
 
 FinishButton.pack(side=RIGHT)
-NextButton.pack(side=RIGHT)
+PreviousButton.pack(side=LEFT)
+NextButton.pack(side=LEFT)
 
 Notes_Button=Button(bottomframe, text="Notes", command=notepad)
 Notes_Button.pack(side=RIGHT)
