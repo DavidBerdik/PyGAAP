@@ -4,7 +4,7 @@
 # 
 ############### !! See PyGaap_gui_functions_map.txt for a rough outline of Tkinter widgets and function calls.
 #
-versiondate="2022.01.14"
+versiondate="2022.01.22"
 #Michael Fang, Boston University.
 
 debug=0 # debug level. 0 = no debug info.
@@ -14,27 +14,43 @@ debug=0 # debug level. 0 = no debug info.
 from cProfile import label
 from tkinter import *
 from tkinter import ttk
-import tkinter
 from tkinter.filedialog import askopenfilename
+from tkinter.tix import CheckList
+from turtle import bgcolor
+
+from matplotlib.style import available
 
 topwindow=Tk() #this is the top-level window when you first open PyGAAP
-topwindow.title("PyGAAP (GUI, underconstruction)")
+topwindow.title("PyGAAP (GUI)")
+
+topwindow.rowconfigure(0, weight=1)
+topwindow.rowconfigure(1, weight=0, minsize=50)
+topwindow.columnconfigure(0, weight=1)
+
+
+################### AESTHETICS
 dpi=topwindow.winfo_fpixels('1i')
 if dpi>72:
     topwindow.geometry("1000x670")
+    #topwindow.minsize(height=400, width=600)
     scrollbar_width=16
 else:
     topwindow.geometry("2000x1150")
+    #topwindow.minsize(height=800, width=1100)
     scrollbar_width=28
 
+accent_color_mid="#c9f6fc"
+accent_color_dark="#7eedfc"
+accent_color_light="#e0f9fc"
 
+###############################
 
 #BELOW ARE ALL THE FUNCTIONS
 def todofunc(): #place holder "to-do function"
     print("To-do function")
     return None
 
-def select_features(ListBoxAv: tkinter.Listbox, ListBoxOp: list, feature, function: str, label=None):
+def select_features(ListBoxAv: Listbox, ListBoxOp: list, feature, function: str):
     """Used by Event Drivers, Event culling etc to add/remove/clear selected features.
     Needs to check if feature is already added."""
     #ListBoxAv: "listbox Available", listbox to choose from
@@ -42,14 +58,14 @@ def select_features(ListBoxAv: tkinter.Listbox, ListBoxOp: list, feature, functi
     #   listbox in the Review & Process tab.
     #feature: is the return of listbox.curselection()
     #function: can be "clear", "remove", or "add"
-    #label is the label to modify to indicate a listbox it refers to is empty when it shouldn't be.
-    #   e.g. when the canonicizer listbox is empty, update the "Canonicizers" label to show the listbox cannot be empty
     if function=="clear":
+        if debug>1: print("select_features: clear")
         for listboxmember in ListBoxOp:
             listboxmember.delete(0, END)
         #if label != None:
         #    label.configure(text=label["text"]+" ×")
     elif function=="remove":
+        if debug>1: print("select_features: remove")
         try:
             for listboxmember in ListBoxOp:
                 listboxmember.delete(feature)
@@ -62,6 +78,7 @@ def select_features(ListBoxAv: tkinter.Listbox, ListBoxOp: list, feature, functi
                 print("remove from list: nothing selected or empty list.")
             return None
     elif function=="add":
+        if debug>1: print("select_features: add")
         try:
             for listboxmember in ListBoxOp:
                 listboxmember.insert(END, ListBoxAv.get(feature))
@@ -70,11 +87,13 @@ def select_features(ListBoxAv: tkinter.Listbox, ListBoxOp: list, feature, functi
         except:
             if debug>0:
                 print("add to list: nothing selected")
+    else:
+        raise ValueError("Bug: All escaped in 'select_features' function.")
     #print(ListBoxOp[0].get(0, ListBoxOp[0].size()))
     return None
 
 
-def find_parameters(frame_to_update: tkinter.Frame, listbox: tkinter.Listbox, displayed_params: list, list_of_params: dict=None, clear: bool=False):
+def find_parameters(frame_to_update: Frame, listbox: Listbox, displayed_params: list, list_of_params: dict=None, clear: bool=False):
     """find parameters in some features to display and set"""
     # feature: individual event drivers, event culling, or analysis methods.
     # frame_to_update: the tkinter frame that displays the parameters.
@@ -119,13 +138,15 @@ def find_parameters(frame_to_update: tkinter.Frame, listbox: tkinter.Listbox, di
             if parameters_to_display[i]['type']=='Entry':
                 displayed_params.append(Entry(frame_to_update))
                 displayed_params[-1].insert(0, str(parameters_to_display[i]['options'][parameters_to_display[i]['default']]))
-                displayed_params[-1].grid(row=i+1, column=1)
+                displayed_params[-1].grid(row=i+1, column=1, sticky=W)
             elif parameters_to_display[i]['type']=='OptionMenu':
                 displayed_params.append(OptionMenu(frame_to_update, param_options[-1], *parameters_to_display[i]['options']))
-                displayed_params[-1].grid(row=i+1, column=1)
+                displayed_params[-1].grid(row=i+1, column=1, sticky=W)
         
-        displayed_params.append(Label(frame_to_update, text='Parameters for: '+str(listbox.get(listbox.curselection()))))
-        displayed_params[-1].grid(row=0, column=0)
+        displayed_params.append(Label(frame_to_update, text='Parameters for: '+str(listbox.get(listbox.curselection())), font=("Helvetica", 14)))
+        displayed_params[-1].grid(row=0, column=0, columnspan=2, sticky=W)
+    frame_to_update.columnconfigure(0, weight=1)
+    frame_to_update.columnconfigure(1, weight=3)
 
 
     return None
@@ -146,10 +167,34 @@ def find_feature(section, directory):
     #directory: where to parse the file tree to find the features.
     pass
 
-def process():
-    """Process all input files with the parameters in all tabs."""
-    print("Process: to-do")
+def process(params: dict, check_listboxes: list, check_labels: list, process_button: Button):
+    """
+    Process all input files with the parameters in all tabs.
+    input: unknown authors, known authors, all listboxes.
+    """
+    # check_listboxes: list of listboxes that shouldn't be empty.
+    # check_labels: list of labels whose text colors need to be updated upon checking the listboxes.
+
+    all_set=True
+    # first check if the listboxes in check_listboxes are empty. If empty
+    process_button.config(fg="#333333", state=NORMAL, text="Process")
+    for lb_index in range(len(check_listboxes)):
+        if check_listboxes[lb_index].size()==0:
+            check_labels[lb_index].config(fg="#FF8888")
+            all_set=False
+            process_button.config(fg="#333333", state=DISABLED, text="Process [missing parameters]")
+        else:
+            check_labels[lb_index].config(fg="black")
+    process_button.config(fg="black")
+    if params==None or len(params)==0: return True
+    
+    if all_set==True:
+        print("Process: to-do")
+    else:
+        print("Process: missing options.")
     return None
+
+
 
 
 AboutPage=None
@@ -201,7 +246,7 @@ def notepad():
         #NotepadWindow.geometry("600x500")
         NotepadWindow_Textfield=Text(NotepadWindow)
         NotepadWindow_Textfield.insert("1.0", str(Notes_content))
-        NotepadWindow_SaveButton=Button(NotepadWindow, text="Save & Close",\
+        NotepadWindow_SaveButton=Button(NotepadWindow, text="Save & Close", activebackground=accent_color_light, bg=accent_color_mid,\
             command=lambda:Notepad_Save(NotepadWindow_Textfield.get("1.0", "end-1c"), NotepadWindow))
         NotepadWindow_Textfield.pack(padx=7, pady=7, expand=True)
         NotepadWindow_SaveButton.pack(pady=(0, 12), expand=True)
@@ -385,8 +430,8 @@ def authorsList(authorList, mode):
             return None
         return None
     else:
-        print("coding error: Author Add/Edit/Remove function 'authorsList' has an unknown mode parameter "+str(mode))
-        assert mode=="add" or mode=="remove" or mode=="edit"
+        assert mode=="add" or mode=="remove" or mode=="edit", "bug: Internal function 'authorsList' has an unknown mode parameter "+str(mode)
+        
         return None
 
     global AuthorWindow
@@ -416,24 +461,24 @@ def authorsList(authorList, mode):
 
     AuthorButtonsFrame=Frame(AuthorWindow)
     
-    AuthorAddDocButton=Button(AuthorButtonsFrame, text="Add Document",\
+    AuthorAddDocButton=Button(AuthorButtonsFrame, text="Add Document", activebackground=accent_color_light, bg=accent_color_mid,\
         command=lambda:addFile("Add Document For Author", AuthorListbox, False, AuthorWindow))
     AuthorAddDocButton.grid(row=1, column=1)
-    AuthorRmvDocButton=Button(AuthorButtonsFrame, text="Remove Document",\
+    AuthorRmvDocButton=Button(AuthorButtonsFrame, text="Remove Document", activebackground=accent_color_light, bg=accent_color_mid,\
         command=lambda:select_features(None, AuthorListbox, AuthorListbox.curselection(), 'remove'))
     AuthorRmvDocButton.grid(row=1, column=2)
     AuthorButtonsFrame.grid(row=3, column=2, sticky='NW')
 
     AuthorBottomButtonsFrame=Frame(AuthorWindow)
     #OK button functions differently depending on "add" or "edit".
-    AuthorOKButton=Button(AuthorBottomButtonsFrame, text="OK")
+    AuthorOKButton=Button(AuthorBottomButtonsFrame, text="OK", activebackground=accent_color_light, bg=accent_color_mid,)
     if mode=="add":
         AuthorOKButton.configure(command=lambda:authorSave(AuthorWindow, authorList, AuthorNameEntry.get(), AuthorListbox.get(0, END), mode))
     elif mode=="edit":
         AuthorOKButton.configure(command=lambda:authorSave(AuthorWindow, authorList, [insertAuthor, AuthorNameEntry.get()], AuthorListbox.get(0, END), mode))
 
     AuthorOKButton.grid(row=1, column=1, sticky="W")
-    AuthorCancelButton=Button(AuthorBottomButtonsFrame, text="Cancel", command=lambda:AuthorWindow.destroy())
+    AuthorCancelButton=Button(AuthorBottomButtonsFrame, text="Cancel", activebackground=accent_color_light, bg=accent_color_mid, command=lambda:AuthorWindow.destroy())
     AuthorCancelButton.grid(row=1, column=2, sticky="W")
     AuthorBottomButtonsFrame.grid(row=4, column=2, pady=7, sticky="NW")
     
@@ -442,11 +487,6 @@ def authorsList(authorList, mode):
 
 
 #ABOVE ARE ALL THE FUNCTIONS
-
-
-
-
-
 
 
 #Test List for features
@@ -483,43 +523,32 @@ topwindow.config(menu=menubar)
 #the middle workspace where the tabs are
 
 workspace=Frame(topwindow, height=800, width=570)
-workspace.pack(padx=20)
+workspace.grid(padx=10, pady=5, row=0, sticky="nswe")
+workspace.columnconfigure(0, weight=1)
+workspace.rowconfigure(0, weight=2)
 
 tabs=ttk.Notebook(workspace)
-tabs.pack(pady=1, expand=True)
+tabs.pack(pady=1, padx=5, expand=True, fill="both")
 
 #size for all the main tabs.
 tabheight=570
 tabwidth=1000
 
+Tabs_names=["Tab_Documents", "Tab_Canonicizers", "Tab_EventDrivers", "Tab_EventCulling", "Tab_AnalysisMethods", "Tab_ReviewProcess"]
+Tabs_Frames=dict() # this stores the main Frame objects for all the tabs.
 
 #below is the tabs framework
-Tab_Documents=Frame(tabs, height=tabheight, width=tabwidth)
-#Tab_Documents.rowconfigure((1, 1), weight=1)
-#Tab_Documents.columnconfigure((1, 1), weight=1)
-Tab_Documents.pack(fill='both', expand=True)
+for t in Tabs_names:
+    Tabs_Frames[t]=Frame(tabs, height=tabheight, width=tabwidth)
+    Tabs_Frames[t].pack(fill='both', expand=True, anchor=NW)
 
-Tab_Canonicizers=Frame(tabs, height=tabheight, width=tabwidth)
-Tab_Canonicizers.pack(fill='both', expand=True)
 
-Tab_EventDrivers=Frame(tabs, height=tabheight, width=tabwidth)
-Tab_EventDrivers.pack(fill='both', expand=True)
-
-Tab_EventCulling=Frame(tabs, height=tabheight, width=tabwidth)
-Tab_EventCulling.pack(fill='both', expand=True)
-
-Tab_AnalysisMethods=Frame(tabs, height=tabheight, width=tabwidth)
-Tab_AnalysisMethods.pack(fill='both', expand=True)
-
-Tab_ReviewProcess=Frame(tabs, height=tabheight, width=tabwidth)
-Tab_ReviewProcess.pack(fill='both', expand=True)
-
-tabs.add(Tab_Documents, text="Documents")
-tabs.add(Tab_Canonicizers, text="Canonicizers")
-tabs.add(Tab_EventDrivers, text="Event Drivers")
-tabs.add(Tab_EventCulling, text="Event Culling")
-tabs.add(Tab_AnalysisMethods, text="Analysis Methods")
-tabs.add(Tab_ReviewProcess, text="Review & Process")
+tabs.add(Tabs_Frames["Tab_Documents"], text="Documents")
+tabs.add(Tabs_Frames["Tab_Canonicizers"], text="Canonicizers")
+tabs.add(Tabs_Frames["Tab_EventDrivers"], text="Event Drivers")
+tabs.add(Tabs_Frames["Tab_EventCulling"], text="Event Culling")
+tabs.add(Tabs_Frames["Tab_AnalysisMethods"], text="Analysis Methods")
+tabs.add(Tabs_Frames["Tab_ReviewProcess"], text="Review & Process")
 #above is the tabs framework
 
 
@@ -529,92 +558,113 @@ tabs.add(Tab_ReviewProcess, text="Review & Process")
 
 #####REVIEW & PROCESS TAB
 #basic frames structure
+Tab_ReviewProcess_Canonicizers=Frame(Tabs_Frames["Tab_ReviewProcess"])
+Tab_ReviewProcess_Canonicizers.grid(row=0, column=0, columnspan=3, sticky="wens", padx=10, pady=10)
 
-Tab_ReviewProcess_Canonicizers=Frame(Tab_ReviewProcess)
-Tab_ReviewProcess_Canonicizers.grid(row=1, column=1, columnspan=3, sticky="NW")
+Tab_ReviewProcess_EventDrivers=Frame(Tabs_Frames["Tab_ReviewProcess"])
+Tab_ReviewProcess_EventDrivers.grid(row=1, column=0, sticky="wens", padx=10, pady=10)
 
-Tab_ReviewProcess_EventDrivers=Frame(Tab_ReviewProcess)
-Tab_ReviewProcess_EventDrivers.grid(row=2, column=1, sticky="NW")
+Tab_ReviewProcess_EventCulling=Frame(Tabs_Frames["Tab_ReviewProcess"])
+Tab_ReviewProcess_EventCulling.grid(row=1, column=1, sticky="wens", padx=10, pady=10)
 
-Tab_ReviewProcess_EventCulling=Frame(Tab_ReviewProcess)
-Tab_ReviewProcess_EventCulling.grid(row=2, column=2, sticky="NW")
+Tab_ReviewProcess_AnalysisMethods=Frame(Tabs_Frames["Tab_ReviewProcess"])
+Tab_ReviewProcess_AnalysisMethods.grid(row=1, column=2, sticky="wens", padx=10, pady=10)
 
-Tab_ReviewProcess_AnalysisMethods=Frame(Tab_ReviewProcess)
-Tab_ReviewProcess_AnalysisMethods.grid(row=2, column=3, sticky="NW")
-
+for n in range(3):
+    Tabs_Frames["Tab_ReviewProcess"].columnconfigure(n, weight=1)
+for n in range(2):
+    Tabs_Frames["Tab_ReviewProcess"].rowconfigure(n, weight=1)
 
 #RP = ReviewProcess
-listbox_width=37
-listbox_height=12
-
 #note: the buttons below (that redirect to corresponding tabs) have hard-coded tab numbers
 Tab_RP_Canonicizers_Button=Button(Tab_ReviewProcess_Canonicizers, text="Canonicizers", font=("helvetica", 16), relief=FLAT,\
-    command=lambda:switch_tabs(tabs, "choose", 1))
-Tab_RP_Canonicizers_Button.grid(row=1, column=1, pady=(15, 4))
+    command=lambda:switch_tabs(tabs, "choose", 1), activeforeground="#333333")
+Tab_RP_Canonicizers_Button.pack(anchor="n")
 
-Tab_RP_Canonicizers_Listbox=Listbox(Tab_ReviewProcess_Canonicizers, width=listbox_width*3, height=listbox_height)
-Tab_RP_Canonicizers_Listbox.grid(row=2, column=1, padx=27)
-
-
+Tab_RP_Canonicizers_Listbox=Listbox(Tab_ReviewProcess_Canonicizers, selectbackground=accent_color_mid)
+Tab_RP_Canonicizers_Listbox.pack(side=LEFT, expand=True, fill=BOTH)
+Tab_RP_Canonicizers_Listbox_scrollbar=Scrollbar(Tab_ReviewProcess_Canonicizers, width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid, command=Tab_RP_Canonicizers_Listbox.yview)
+Tab_RP_Canonicizers_Listbox_scrollbar.pack(side=RIGHT, fill=BOTH)
+Tab_RP_Canonicizers_Listbox.config(yscrollcommand=Tab_RP_Canonicizers_Listbox_scrollbar.set)
 
 Tab_RP_EventDrivers_Button=Button(Tab_ReviewProcess_EventDrivers, text="Event Drivers", font=("helvetica", 16), relief=FLAT,\
     command=lambda:switch_tabs(tabs, "choose", 2))
-Tab_RP_EventDrivers_Button.grid(row=1, column=1, pady=(15, 4))
+Tab_RP_EventDrivers_Button.pack(anchor="n")
 
-Tab_RP_EventDrivers_Listbox=Listbox(Tab_ReviewProcess_EventDrivers, width=listbox_width, height=listbox_height)
-Tab_RP_EventDrivers_Listbox.grid(row=2, column=1, padx=(15, 5))
-
-
-
+Tab_RP_EventDrivers_Listbox=Listbox(Tab_ReviewProcess_EventDrivers, selectbackground=accent_color_mid)
+Tab_RP_EventDrivers_Listbox.pack(side=LEFT, expand=True, fill=BOTH)
+Tab_RP_EventDrivers_Listbox_scrollbar=Scrollbar(Tab_ReviewProcess_EventDrivers, width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid, command=Tab_RP_EventDrivers_Listbox.yview)
+Tab_RP_EventDrivers_Listbox_scrollbar.pack(side=RIGHT, fill=BOTH)
+Tab_RP_EventDrivers_Listbox.config(yscrollcommand=Tab_RP_EventDrivers_Listbox_scrollbar.set)
 Tab_RP_EventCulling_Button=Button(Tab_ReviewProcess_EventCulling, text="Event Culling", font=("helvetica", 16), relief=FLAT,\
     command=lambda:switch_tabs(tabs, "choose", 3))
-Tab_RP_EventCulling_Button.grid(row=1, column=1, pady=(15, 4))
+Tab_RP_EventCulling_Button.pack(anchor="n")
 
-Tab_RP_EventCulling_Listbox=Listbox(Tab_ReviewProcess_EventCulling, width=listbox_width, height=listbox_height)
-Tab_RP_EventCulling_Listbox.grid(row=2, column=1, padx=(5, 5))
-
-
-
+Tab_RP_EventCulling_Listbox=Listbox(Tab_ReviewProcess_EventCulling, selectbackground=accent_color_mid)
+Tab_RP_EventCulling_Listbox.pack(side=LEFT, expand=True, fill=BOTH)
+Tab_RP_EventCulling_Listbox_scrollbar=Scrollbar(Tab_ReviewProcess_EventCulling, width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid, command=Tab_RP_EventCulling_Listbox.yview)
+Tab_RP_EventCulling_Listbox_scrollbar.pack(side=RIGHT, fill=BOTH)
+Tab_RP_EventCulling_Listbox.config(yscrollcommand=Tab_RP_EventCulling_Listbox_scrollbar.set)
 Tab_RP_AnalysisMethods_Button=Button(Tab_ReviewProcess_AnalysisMethods, text="Analysis Methods", font=("helvetica", 16), relief=FLAT,\
     command=lambda:switch_tabs(tabs, "choose", 4))
-Tab_RP_AnalysisMethods_Button.grid(row=1, column=1, pady=(15, 4))
+Tab_RP_AnalysisMethods_Button.pack(anchor="n")
 
-Tab_RP_AnalysisMethods_Listbox=Listbox(Tab_ReviewProcess_AnalysisMethods, width=listbox_width, height=listbox_height)
-Tab_RP_AnalysisMethods_Listbox.grid(row=2, column=1, padx=(5, 15))
+Tab_RP_AnalysisMethods_Listbox=Listbox(Tab_ReviewProcess_AnalysisMethods, selectbackground=accent_color_mid)
+Tab_RP_AnalysisMethods_Listbox.pack(side=LEFT, expand=True, fill=BOTH)
+Tab_RP_AnalysisMethods_Listbox_scrollbar=Scrollbar(Tab_ReviewProcess_AnalysisMethods, width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid, command=Tab_RP_AnalysisMethods_Listbox.yview)
+Tab_RP_AnalysisMethods_Listbox_scrollbar.pack(side=RIGHT, fill=BOTH)
+Tab_RP_AnalysisMethods_Listbox.config(yscrollcommand=Tab_RP_AnalysisMethods_Listbox_scrollbar.set)
+Tab_RP_Process_Button=Button(Tabs_Frames["Tab_ReviewProcess"], text="Process", width=25)
 
-Tab_RP_Process_Button=Button(Tab_ReviewProcess, text="Process", command=process)
-Tab_RP_Process_Button.grid(row=3, columnspan=4, sticky="se", pady=20, padx=20)
+Tab_RP_Process_Button.config(\
+    command=lambda lb=[Tab_RP_EventDrivers_Listbox, Tab_RP_AnalysisMethods_Listbox],\
+        labels=[Tab_RP_EventDrivers_Button, Tab_RP_AnalysisMethods_Button],\
+            button=Tab_RP_Process_Button:process("test", lb, labels, button))
+
+Tab_RP_Process_Button.grid(row=2, column=0, columnspan=3, sticky="se", pady=5, padx=20)
+
+Tab_RP_Process_Button.bind("<Map>", lambda event, a=[], lb=[Tab_RP_EventDrivers_Listbox, Tab_RP_AnalysisMethods_Listbox],\
+    labels=[Tab_RP_EventDrivers_Button, Tab_RP_AnalysisMethods_Button],\
+    button=Tab_RP_Process_Button:process(a, lb, labels, button))
 
 
 
 
 ############### DOCUMENTS TAB ########################################################################################################################
 
-Tab_Documents_Language_label=Label(Tab_Documents, text="Language", font=("helvetica", 15), anchor='nw')
-Tab_Documents_Language_label.grid(row=1, column=1, sticky='NW', pady=(20, 5))
+Tab_Documents_Language_label=Label(Tabs_Frames["Tab_Documents"], text="Language", font=("helvetica", 15), anchor='nw')
+Tab_Documents_Language_label.grid(row=1, column=0, sticky='NW', pady=(10, 5))
+
+for n in range(10):
+    if n==5 or n==8:
+        w=1
+        Tabs_Frames["Tab_Documents"].columnconfigure(0, weight=1)
+
+    else: w=0
+    Tabs_Frames["Tab_Documents"].rowconfigure(n, weight=w)
 
 #documents-language selection
 analysisLanguage=StringVar()
 analysisLanguage.set("English")
 #may need a lookup function for the options below
 analysisLanguageOptions=["Arabic (ISO-8859-6)", "Chinese (GB2123)", "English"]
-Tab_Documents_language_dropdown=OptionMenu(Tab_Documents, analysisLanguage, *analysisLanguageOptions, )
+Tab_Documents_language_dropdown=OptionMenu(Tabs_Frames["Tab_Documents"], analysisLanguage, *analysisLanguageOptions)
 Tab_Documents_language_dropdown['anchor']='nw'
-Tab_Documents_language_dropdown.grid(row=2, column=1, sticky='NW')
+Tab_Documents_language_dropdown.grid(row=2, column=0, sticky='NW')
 
 
 
 #documents-unknown authors
-Tab_Documents_UnknownAuthors_label=Label(Tab_Documents, text="Unknown Authors", font=("helvetica", 15), anchor='nw')
-Tab_Documents_UnknownAuthors_label.grid(row=4, column=1, sticky="W", pady=(20, 10))
+Tab_Documents_UnknownAuthors_label=Label(Tabs_Frames["Tab_Documents"], text="Unknown Authors", font=("helvetica", 15), anchor='nw')
+Tab_Documents_UnknownAuthors_label.grid(row=4, column=0, sticky="W", pady=(10, 5))
 
 
-Tab_Documents_UnknownAuthors_Frame=Frame(Tab_Documents)
-Tab_Documents_UnknownAuthors_Frame.grid(row=5, column=1, sticky="W")
+Tab_Documents_UnknownAuthors_Frame=Frame(Tabs_Frames["Tab_Documents"])
+Tab_Documents_UnknownAuthors_Frame.grid(row=5, column=0, sticky="wnse")
 
 
-Tab_Documents_UnknownAuthors_listbox=Listbox(Tab_Documents_UnknownAuthors_Frame, width="100")
-Tab_Documents_UnknownAuthors_listscrollbar=Scrollbar(Tab_Documents_UnknownAuthors_Frame, width=scrollbar_width)
+Tab_Documents_UnknownAuthors_listbox=Listbox(Tab_Documents_UnknownAuthors_Frame, width="100", selectbackground=accent_color_mid)
+Tab_Documents_UnknownAuthors_listscrollbar=Scrollbar(Tab_Documents_UnknownAuthors_Frame, width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid)
 #loop below: to be removed
 for values in testfeatures[:5]:
     Tab_Documents_UnknownAuthors_listbox.insert(END, values)
@@ -624,46 +674,46 @@ Tab_Documents_UnknownAuthors_listbox.config(yscrollcommand=Tab_Documents_Unknown
 Tab_Documents_UnknownAuthors_listscrollbar.config(command=Tab_Documents_UnknownAuthors_listbox.yview)
 
 
-Tab_Documents_UnknownAuthors_listbox.pack(side=LEFT, fill=BOTH)
-Tab_Documents_UnknownAuthors_listscrollbar.pack(side=RIGHT, fill=BOTH)
+Tab_Documents_UnknownAuthors_listbox.pack(side=LEFT, fill=BOTH, expand=True)
+Tab_Documents_UnknownAuthors_listscrollbar.pack(side=RIGHT, fill=BOTH, padx=(0, 30))
 
-Tab_Documents_doc_buttons=Frame(Tab_Documents)
-Tab_Documents_doc_buttons.grid(row=6, column=1, sticky="W")
-Tab_Documents_UnknownAuthors_AddDoc_Button=Button(Tab_Documents_doc_buttons, text="Add Document", width="16", command=\
+Tab_Documents_doc_buttons=Frame(Tabs_Frames["Tab_Documents"])
+Tab_Documents_doc_buttons.grid(row=6, column=0, sticky="W")
+Tab_Documents_UnknownAuthors_AddDoc_Button=Button(Tab_Documents_doc_buttons, text="Add Document", width="16", activebackground=accent_color_light, bg=accent_color_mid, command=\
     lambda:addFile("Add a document to Unknown Authors", Tab_Documents_UnknownAuthors_listbox, False))
-Tab_Documents_UnknownAuthors_RmvDoc_Button=Button(Tab_Documents_doc_buttons, text="Remove Document", width="16", command=\
+Tab_Documents_UnknownAuthors_RmvDoc_Button=Button(Tab_Documents_doc_buttons, text="Remove Document", width="16", activebackground=accent_color_light, bg=accent_color_mid, command=\
     lambda:select_features(None, [Tab_Documents_UnknownAuthors_listbox], Tab_Documents_UnknownAuthors_listbox.curselection(), "remove"))
 
 Tab_Documents_UnknownAuthors_AddDoc_Button.grid(row=1, column=1, sticky="W")
 Tab_Documents_UnknownAuthors_RmvDoc_Button.grid(row=1, column=2, sticky="W")
 
 #documents-known authors
-Tab_Documents_KnownAuthors_label=Label(Tab_Documents, text="Known Authors", font=("helvetica", 15), anchor='nw')
-Tab_Documents_KnownAuthors_label.grid(row=7, column=1, sticky="W", pady=(20, 10))
+Tab_Documents_KnownAuthors_label=Label(Tabs_Frames["Tab_Documents"], text="Known Authors", font=("helvetica", 15), anchor='nw')
+Tab_Documents_KnownAuthors_label.grid(row=7, column=0, sticky="W", pady=(10, 5))
 
 
-Tab_Documents_KnownAuthors_Frame=Frame(Tab_Documents)
-Tab_Documents_KnownAuthors_Frame.grid(row=8, column=1, sticky="W")
+Tab_Documents_KnownAuthors_Frame=Frame(Tabs_Frames["Tab_Documents"])
+Tab_Documents_KnownAuthors_Frame.grid(row=8, column=0, sticky="wnse")
 
 
 Tab_Documents_KnownAuthors_listbox=Listbox(Tab_Documents_KnownAuthors_Frame, width="100")
-Tab_Documents_KnownAuthors_listscroller=Scrollbar(Tab_Documents_KnownAuthors_Frame, width=scrollbar_width)
+Tab_Documents_KnownAuthors_listscroller=Scrollbar(Tab_Documents_KnownAuthors_Frame, width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid)
 
 Tab_Documents_KnownAuthors_listbox.config(yscrollcommand=Tab_Documents_KnownAuthors_listscroller.set)
 Tab_Documents_KnownAuthors_listscroller.config(command=Tab_Documents_KnownAuthors_listbox.yview)
 
 
-Tab_Documents_KnownAuthors_listbox.pack(side=LEFT, fill=BOTH)
-Tab_Documents_KnownAuthors_listscroller.pack(side=RIGHT, fill=BOTH)
+Tab_Documents_KnownAuthors_listbox.pack(side=LEFT, fill=BOTH, expand=True)
+Tab_Documents_KnownAuthors_listscroller.pack(side=RIGHT, fill=BOTH, padx=(0, 30))
 
 #These are known authors
-Tab_Documents_knownauth_buttons=Frame(Tab_Documents)
-Tab_Documents_knownauth_buttons.grid(row=9, column=1, sticky="W")
-Tab_Documents_KnownAuthors_AddAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Add Author", width="15",\
+Tab_Documents_knownauth_buttons=Frame(Tabs_Frames["Tab_Documents"])
+Tab_Documents_knownauth_buttons.grid(row=9, column=0, sticky="W")
+Tab_Documents_KnownAuthors_AddAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Add Author", width="15", activebackground=accent_color_light, bg=accent_color_mid,\
     command=lambda:authorsList(Tab_Documents_KnownAuthors_listbox, 'add'))
-Tab_Documents_KnownAuthors_EditAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Edit Author", width="15",\
+Tab_Documents_KnownAuthors_EditAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Edit Author", width="15", activebackground=accent_color_light, bg=accent_color_mid,\
     command=lambda:authorsList(Tab_Documents_KnownAuthors_listbox, 'edit'))
-Tab_Documents_KnownAuthors_RmvAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Remove Author", width="15", command=\
+Tab_Documents_KnownAuthors_RmvAuth_Button=Button(Tab_Documents_knownauth_buttons, text="Remove Author", width="15", activebackground=accent_color_light, bg=accent_color_mid, command=\
     lambda:authorsList(Tab_Documents_KnownAuthors_listbox, "remove"))
 
 Tab_Documents_KnownAuthors_AddAuth_Button.grid(row=1, column=1, sticky="W")
@@ -672,291 +722,202 @@ Tab_Documents_KnownAuthors_RmvAuth_Button.grid(row=1, column=3, sticky="W")
 
 
 
-# CANONICIZERS TAB #######################################################################################################################################
-Tab_Canon_Frame=Frame(Tab_Canonicizers)
-Tab_Canon_Frame.grid(row=1, column=1)
-
-#the height of the top section (everything except the "description at bottom")
-Tab_Canon_topsection_height="20"
-
-#####available canonicizers
-Tab_Canon_Available=Frame(Tab_Canon_Frame)
-Tab_Canon_Available.grid(row=1, column=1)
-
-Tab_Canon_Available_label=Label(Tab_Canon_Available, text="Canonicizers", font=("helvetica", 15), anchor='nw')
-Tab_Canon_Available_label.grid(row=1, column=1, sticky="NW", pady=(10, 5))
-
-Tab_Canon_Available_listbox_frame=Frame(Tab_Canon_Available)
-Tab_Canon_Available_listbox=Listbox(Tab_Canon_Available_listbox_frame, width="30", height=Tab_Canon_topsection_height)
-
-Tab_Canon_Available_listbox_listscrollbar=Scrollbar(Tab_Canon_Available_listbox_frame, width=scrollbar_width)
-Tab_Canon_Available_listbox_listscrollbar.pack(side=RIGHT, fill=BOTH)
-
-Tab_Canon_Available_listbox.config(yscrollcommand=Tab_Canon_Available_listbox_listscrollbar.set)
-Tab_Canon_Available_listbox_listscrollbar.config(command=Tab_Canon_Available_listbox.yview)
 
 
-for values in testfeatures:
-    Tab_Canon_Available_listbox.insert(END, values)
-#Tab_Canon_Available_listbox.grid(row=2, column=1)
-Tab_Canon_Available_listbox.pack()
-Tab_Canon_Available_listbox_frame.grid(row=2, column=1)
-#####
+# This function creates canonicizers, event drivers, event culling, and analysis methods tabs.
+def create_feature_tab(tab_frame: Frame, available_content: list, parameters_content=None, **extra):
+    """
+    creates a tab of available-buttons-selected-description tab.
+    tab_frame: the top-level frame in the notebook tab
+    available_content: list of label texts for the available features to go in.
+    button_functions: list of buttons in the middle frame
+    selected_content: list of names of listboxes for the selected features to go in.
+    parameters_content: governs how the parameters frame is displayed
+    description_content: governs how the descriptions frame is displayed.
+    """
+    assert len(set(available_content))==len(available_content), "Bug: create_features_tab: available_content can't have repeated names."
+    global scrollbar_width
+    global testfeatures
+    global testfeatures_parameters
+
+    # Layer 0
+    objects=dict() # objects in the frame
+    tab_frame.columnconfigure(0, weight=1)
+    tab_frame.rowconfigure(0, weight=1)
+
+    topheight=0.7
+    bottomheight=1-topheight
+    
+    objects["top_frame"]=Frame(tab_frame)
+    #objects["top_frame"].grid(row=0, column=0, sticky="nwes")
+    objects["top_frame"].place(relx=0, rely=0, relwidth=1, relheight=topheight)
+    '''
+    objects["top_frame"].columnconfigure(0, weight=1)
+    objects["top_frame"].columnconfigure(2, weight=1)
+    if parameters_content!=None:
+        objects["top_frame"].columnconfigure(3, weight=1)
+    objects["top_frame"].rowconfigure(0, weight=2)
+    objects["top_frame"].rowconfigure(1, weight=1)
+    '''
+
+    
+    # Layer 1: main frames
+    objects["available_frame"]=Frame(objects["top_frame"])
+    #objects["available_frame"].grid(row=0, column=0, sticky="nwes")
+    objects["available_frame"].place(relx=0, rely=0, relwidth=0.3, relheight=1)
+
+    objects["buttons_frame"]=Frame(objects["top_frame"])
+    #objects["buttons_frame"].grid(row=0, column=1, sticky="nwes")
+    objects["buttons_frame"].place(relx=0.3, rely=0, relwidth=0.1, relheight=1)
+
+    objects["selected_frame"]=Frame(objects["top_frame"])
+    #objects["selected_frame"].grid(row=0, column=2, sticky="nwes")
+    objects["selected_frame"].place(relx=0.4, rely=0, relwidth=0.3, relheight=1)
+
+    if parameters_content!=None:
+        objects["parameters_frame"]=Frame(objects["top_frame"])
+        objects["parameters_frame"].place(relx=0.7, rely=0, relwidth=0.3, relheight=1)
+
+        #objects["parameters_frame"].grid(row=0, column=3, sticky="nwes")
+
+    objects["description_frame"]=Frame(tab_frame)
+    #objects["description_frame"].grid(row=1, column=0, columnspan=4, sticky="nwes")
+    objects["description_frame"].place(relx=0, rely=topheight, relheight=bottomheight, relwidth=1)
+
+    # Layer 2: objects in main frames
+    counter=0
+    objects["available_listboxes"]=[]
+    # each entry in objects["available_listboxes"]:
+    # [frame, label, listbox, scrollbar]
+    objects["available_frame"].columnconfigure(0, weight=1)
+
+    for name in available_content:
+        # "Available" listboxes
+        objects["available_listboxes"].append([Frame(objects["available_frame"])])
+        objects["available_listboxes"][-1][0].grid(row=counter, column=0, sticky="swen")
+
+        objects["available_frame"].rowconfigure(counter, weight=1)
+
+        objects["available_listboxes"][-1].append(Label(objects["available_listboxes"][-1][0], text=name, font=("Helvetica", 15)))
+        objects["available_listboxes"][-1][1].pack(pady=(10, 5), side=TOP, anchor=NW)
+
+        objects["available_listboxes"][-1].append(Listbox(objects["available_listboxes"][-1][0], selectbackground=accent_color_mid))
+        objects["available_listboxes"][-1][2].pack(expand=True, fill=BOTH, side=LEFT)
+        for values in testfeatures:
+            objects["available_listboxes"][-1][2].insert(END, values)
+
+        objects["available_listboxes"][-1].append(Scrollbar(objects["available_listboxes"][-1][0], width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid, command=objects["available_listboxes"][-1][2].yview))
+        objects["available_listboxes"][-1][3].pack(side=RIGHT, fill=BOTH)
+        objects["available_listboxes"][-1][2].config(yscrollcommand=objects["available_listboxes"][-1][3].set)
+
+        counter+=1
+
+    objects["selected_listboxes"]=[]
+    objects["selected_listboxes"].append([Frame(objects["selected_frame"])])
+    objects["selected_listboxes"][-1][0].pack(expand=True, fill=BOTH)
+
+    objects["selected_listboxes"][-1].append(Label(objects["selected_listboxes"][-1][0], text="Selected", font=("Helvetica", 15)))
+    objects["selected_listboxes"][-1][1].pack(pady=(10, 5), side=TOP, anchor=NW)
+
+    objects["selected_listboxes"][-1].append(Listbox(objects["selected_listboxes"][-1][0], selectbackground=accent_color_mid))
+    objects["selected_listboxes"][-1][2].pack(expand=True, fill=BOTH, side=LEFT)
+
+    objects["selected_listboxes"][-1].append(Scrollbar(objects["selected_listboxes"][-1][0], width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid, command=objects["selected_listboxes"][-1][2].yview))
+    objects["selected_listboxes"][-1][3].pack(side=RIGHT, fill=BOTH)
+    objects["selected_listboxes"][-1][2].config(yscrollcommand=objects["selected_listboxes"][-1][3].set)
+
+    Label(objects["buttons_frame"], text="", height=2).pack() # empty label to create space above buttons
+    counter=0
+    if extra.get("extra_buttons")==None: pass
+    elif extra.get("extra_buttons")=="Canonicizers":
+        extra.get("canonicizers_format")
+        extra.get("canonicizers_format").set("All")
+        CanonicizerFormatOptions=["All", "Generic", "Doc", "PDF", "HTML"]
+        objects["Canonicizers_format"]=OptionMenu(objects["buttons_frame"], extra.get("canonicizers_format"), *CanonicizerFormatOptions)
+        objects["Canonicizers_format"].pack(anchor=W)
+        counter=1
+    
+
+    RP_listbox=extra.get("RP_listbox") # this is the listbox in the "Review and process" page to update when user adds a feature in previous pages.
+
+    
+    objects["buttons_add"]=Button(objects["buttons_frame"], width="11", text="Add", anchor='s', activebackground=accent_color_light, bg=accent_color_mid,
+        command=lambda:select_features(objects["available_listboxes"][0][2], [objects["selected_listboxes"][0][2], RP_listbox], objects["available_listboxes"][0][2].curselection(), "add"))
+    objects["buttons_add"].pack(anchor=CENTER, fill=X)
+
+    objects["buttons_remove"]=Button(objects["buttons_frame"], width="11", text="Remove", anchor='s', activebackground=accent_color_light, bg=accent_color_mid,
+        command=lambda:select_features(None, [objects["selected_listboxes"][0][2], RP_listbox], objects["selected_listboxes"][0][2].curselection(), "remove"))
+    objects["buttons_remove"].pack(anchor=CENTER, fill=X)
+
+    objects["buttons_clear"]=Button(objects["buttons_frame"], width="11", text="Clear", anchor='s', activebackground=accent_color_light, bg=accent_color_mid,
+        command=lambda:select_features(None, [objects["selected_listboxes"][0][2], RP_listbox], objects["available_listboxes"][0][2].curselection(), "clear"))
+    objects["buttons_clear"].pack(anchor=CENTER, fill=X)
+
+    if parameters_content=="EventDrivers":
+        displayed_parameters=extra.get("displayed_parameters")
+        objects['parameters_label']=Label(objects["parameters_frame"], text="Parameters", font=("helvetica", 15), anchor=NW)
+        objects['parameters_label'].pack(pady=(10, 5),anchor=W)
+
+        objects['displayed_parameters_frame']=Frame(objects["parameters_frame"])
+        objects['displayed_parameters_frame'].pack(padx=20, pady=20)
+
+        objects["selected_listboxes"][-1][2].bind("<<ListboxSelect>>",\
+            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp, None))
+        objects["selected_listboxes"][-1][2].bind("<<Unmap>>",\
+            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp))
 
 
-#####buttons to choose or remove canonicizers
-Tab_Canon_Buttons=Frame(Tab_Canon_Frame)
-Tab_Canon_Buttons.grid(row=1, column=2)
+    objects["description_label"]=Label(objects["description_frame"], text="Description", font=("helvetica", 15), anchor='nw')
+    objects["description_label"].pack(anchor=NW, pady=(20, 5))
+    objects["description_box"]=Text(objects["description_frame"], bd=5, relief="groove", bg=topwindow.cget("background"), state=DISABLED)
+    objects["description_box"].pack(fill=BOTH, expand=True, side=LEFT)
+    objects["description_box_scrollbar"]=Scrollbar(objects["description_frame"], width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid, command=objects["description_box"].yview)
+    objects["description_box"].config(yscrollcommand=objects["description_box_scrollbar"].set)
+    objects["description_box_scrollbar"].pack(side=RIGHT, fill=BOTH)
 
-Tab_Canon_ButtonWidth="11"
+    return objects
+
+generated_widgets=dict()
+
 CanonicizerFormat=StringVar()
-CanonicizerFormat.set("All")
-CanonicizerFormatOptions=["All", "Generic", "Doc", "PDF", "HTML"]
-Tab_Canon_Buttons_formatMenu=OptionMenu(Tab_Canon_Buttons, CanonicizerFormat, *CanonicizerFormatOptions)
-Tab_Canon_Buttons_formatMenu.grid(row=1, column=1, sticky="NW")
-
-Tab_Canon_Buttons_add=Button(Tab_Canon_Buttons, width=Tab_Canon_ButtonWidth, text="Add", command=todofunc)
-#first initialize the buttons. Since the "selected listbox is not initialized yet, can't use the select_features function."
-#need to reconfigure later.
-Tab_Canon_Buttons_add.grid(row=2, column=1, sticky="NW")
-
-Tab_Canon_Buttons_remove=Button(Tab_Canon_Buttons, width=Tab_Canon_ButtonWidth, text="Remove", command=todofunc)
-Tab_Canon_Buttons_remove.grid(row=3, column=1, sticky="NW")
-
-Tab_Canon_Buttons_clear=Button(Tab_Canon_Buttons, width=Tab_Canon_ButtonWidth, text="Clear", command=todofunc)
-Tab_Canon_Buttons_clear.grid(row=4, column=1, sticky="NW")
-#####
-
-#####selected canonicizers
-Tab_Canon_Selected=Frame(Tab_Canon_Frame)
-Tab_Canon_Selected.grid(row=1, column=3)
-
-Tab_Canon_Selected_label=Label(Tab_Canon_Selected, text="Selected", font=("helvetica", 15), anchor='nw')
-Tab_Canon_Selected_label.grid(row=1, column=1, sticky="W", pady=(10, 5))
-Tab_Canon_Selected_listbox=Listbox(Tab_Canon_Selected, width="38", height=Tab_Canon_topsection_height)
-Tab_Canon_Selected_listbox.grid(row=2, column=1)
-
-#reconfiguring the buttons after the seleted listboxes are initialized:
-Tab_Canon_Buttons_add.configure(command=lambda:select_features(Tab_Canon_Available_listbox, [Tab_Canon_Selected_listbox, Tab_RP_Canonicizers_Listbox],\
-    Tab_Canon_Available_listbox.curselection(), "add"))
-Tab_Canon_Buttons_remove.configure(command=lambda:select_features(None, [Tab_Canon_Selected_listbox, Tab_RP_Canonicizers_Listbox],\
-    Tab_Canon_Selected_listbox.curselection(), "remove"))
-Tab_Canon_Buttons_clear.configure(command=lambda:select_features(None, [Tab_Canon_Selected_listbox, Tab_RP_Canonicizers_Listbox], None, "clear"))
-#####
-
-Tab_Canon_Description=Frame(Tab_Canonicizers)
-Tab_Canon_Description.grid(row=2, column=1, sticky="NW")
-
-Tab_Canon_DescriptionLabel=Label(Tab_Canon_Description, text="Description", font=("helvetica", 15), anchor='nw')
-Tab_Canon_DescriptionLabel.grid(row=1, column=1, sticky="NW")
-Tab_Canon_DescriptionText=Text(Tab_Canon_Description, height='6')
-Tab_Canon_DescriptionText.grid(row=2, column=1, sticky="NW")
-
-
-# EVENT DRIVERS TAB #######################################################################################################################################
-
-Tab_EventDrivers_topframe=Frame(Tab_EventDrivers)
-Tab_EventDrivers_topframe.grid(row=1, column=1, sticky='nw')
-#Available Event Drivers
-Tab_EventDrivers_available=Frame(Tab_EventDrivers_topframe)
-Tab_EventDrivers_available.grid(row=1, column=1)
-
-Tab_EventDrivers_topframe_height="20"
-
-Tab_EventDrivers_available_label=Label(Tab_EventDrivers_available, text="Event Drivers", font=("helvetica", 15), anchor='nw')
-Tab_EventDrivers_available_label.grid(row=1, column=1, sticky="NW", pady=(10, 5))
-
-Tab_EventDrivers_available_listbox_frame=Frame(Tab_EventDrivers_available)
-Tab_EventDrivers_available_listbox=Listbox(Tab_EventDrivers_available_listbox_frame, width="30", height=Tab_EventDrivers_topframe_height)
-Tab_EventDrivers_available_listbox_listscrollbar=Scrollbar(Tab_EventDrivers_available_listbox_frame, width=scrollbar_width)
-Tab_EventDrivers_available_listbox_listscrollbar.pack(side=RIGHT, fill=BOTH)
-
-Tab_EventDrivers_available_listbox.config(yscrollcommand=Tab_EventDrivers_available_listbox_listscrollbar.set)
-Tab_EventDrivers_available_listbox_listscrollbar.config(command=Tab_EventDrivers_available_listbox.yview)
-
-
-for values in testfeatures:
-    Tab_EventDrivers_available_listbox.insert(END, values)
-
-Tab_EventDrivers_available_listbox.pack()
-Tab_EventDrivers_available_listbox_frame.grid(row=2, column=1)
-#####
-
-#####buttons to choose or remove Event drivers
-Tab_EventDrivers_Buttons=Frame(Tab_EventDrivers_topframe)
-Tab_EventDrivers_Buttons.grid(row=1, column=2)
-
-Tab_EventDrivers_buttonwidth="11"
-
-Tab_EventDrivers_Buttons_add=Button(Tab_EventDrivers_Buttons, width=Tab_EventDrivers_buttonwidth, text="Add", command=todofunc)
-Tab_EventDrivers_Buttons_add.grid(row=1, column=1, sticky="NW")
-
-Tab_EventDrivers_Buttons_remove=Button(Tab_EventDrivers_Buttons, width=Tab_EventDrivers_buttonwidth, text="Remove", command=todofunc)
-Tab_EventDrivers_Buttons_remove.grid(row=2, column=1, sticky="NW")
-
-Tab_EventDrivers_Buttons_clear=Button(Tab_EventDrivers_Buttons, width=Tab_EventDrivers_buttonwidth, text="Clear", command=todofunc)
-Tab_EventDrivers_Buttons_clear.grid(row=3, column=1, sticky="NW")
-#####
-
-#####selected event drivers
-Tab_EventDrivers_Selected=Frame(Tab_EventDrivers_topframe)
-Tab_EventDrivers_Selected.grid(row=1, column=3)
-
-Tab_EventDrivers_Selected_label=Label(Tab_EventDrivers_Selected, text="Selected", font=("helvetica", 15), anchor='nw')
-Tab_EventDrivers_Selected_label.grid(row=1, column=1, sticky="W", pady=(10, 5))
-Tab_EventDrivers_Selected_listbox=Listbox(Tab_EventDrivers_Selected, width="38", height=Tab_EventDrivers_topframe_height)
-Tab_EventDrivers_Selected_listbox.grid(row=2, column=1)
-#####
-
-#reconfiguring buttons for event drivers
-Tab_EventDrivers_Buttons_add.configure(command=\
-    lambda:select_features(Tab_EventDrivers_available_listbox, [Tab_EventDrivers_Selected_listbox, Tab_RP_EventDrivers_Listbox], Tab_EventDrivers_available_listbox.curselection(), "add", Tab_RP_EventDrivers_Button))
-Tab_EventDrivers_Buttons_clear.configure(command=\
-    lambda:select_features(None, [Tab_EventDrivers_Selected_listbox, Tab_RP_EventDrivers_Listbox], None, "clear", Tab_RP_EventDrivers_Button))
-Tab_EventDrivers_Buttons_remove.configure(command=\
-    lambda:select_features(None, [Tab_EventDrivers_Selected_listbox, Tab_RP_EventDrivers_Listbox], Tab_EventDrivers_Selected_listbox.curselection(), "remove", Tab_RP_EventDrivers_Button))
-
-
-#####parameters frame
-Tab_EventDrivers_Parameters=Frame(Tab_EventDrivers_topframe)
-Tab_EventDrivers_Parameters.grid(row=1, column=4, rowspan=5, sticky=NW)
-Tab_EventDrivers_ParametersLabel=Label(Tab_EventDrivers_Parameters, text="Parameters", font=("helvetica", 15))
-Tab_EventDrivers_ParametersLabel.pack(pady=(10, 5), anchor=NW)
-
-Tab_EventDrivers_Parameters_parameters_frame=Frame(Tab_EventDrivers_Parameters, relief=SUNKEN)
-Tab_EventDrivers_Parameters_parameters_frame.pack()
-
+generated_widgets['Canonicizers']=create_feature_tab(Tabs_Frames["Tab_Canonicizers"], ["Canonicizers"], extra_buttons="Canonicizers", canonicizers_format=CanonicizerFormat, RP_listbox=Tab_RP_Canonicizers_Listbox)
 Tab_EventDrivers_Parameters_parameters_displayed=[]
-
-Tab_EventDrivers_Selected_listbox.bind("<<ListboxSelect>>",\
-    lambda event, frame=Tab_EventDrivers_Parameters_parameters_frame, lb=Tab_EventDrivers_Selected_listbox, dp=Tab_EventDrivers_Parameters_parameters_displayed:find_parameters(frame, lb, dp, None))
-Tab_EventDrivers_Selected_listbox.bind("<Unmap>",\
-    lambda event, frame=Tab_EventDrivers_Parameters_parameters_frame, lb=Tab_EventDrivers_Selected_listbox, dp=Tab_EventDrivers_Parameters_parameters_displayed:find_parameters(frame, lb, dp))
-#lambda:find_parameters(feature, listbox, listofparams, frametoupdate)
-
-#####descriptions frame
-Tab_EventDrivers_Description=Frame(Tab_EventDrivers)
-Tab_EventDrivers_Description.grid(row=2, column=1, columnspan=5, sticky="NW")
-
-Tab_EventDrivers_DescriptionLabel=Label(Tab_EventDrivers_Description, text="Description", font=("helvetica", 15), anchor='nw')
-Tab_EventDrivers_DescriptionLabel.grid(row=1, column=1, sticky="NW", pady=(10, 5))
-Tab_EventDrivers_DescriptionText=Text(Tab_EventDrivers_Description, height='6')
-Tab_EventDrivers_DescriptionText.grid(row=2, column=1, sticky="NW")
+generated_widgets['EventDrivers']=create_feature_tab(Tabs_Frames["Tab_EventDrivers"], ["Event Drivers"], "EventDrivers", displayed_parameters=Tab_EventDrivers_Parameters_parameters_displayed, RP_listbox=Tab_RP_EventDrivers_Listbox)
+generated_widgets['EventCulling']=create_feature_tab(Tabs_Frames["Tab_EventCulling"], ["Event Culling"], RP_listbox=Tab_RP_EventCulling_Listbox)
+generated_widgets['AnalysisMethods']=create_feature_tab(Tabs_Frames["Tab_AnalysisMethods"], ["Analysis Methods", "Distance Functions"], RP_listbox=Tab_RP_AnalysisMethods_Listbox)
 
 
-
-
-
-
-
-##### EVENT CULLING TAB #################################################################################################################################
-#EVENT CULLING
-
-Tab_EventCulling_topframe=Frame(Tab_EventCulling)
-Tab_EventCulling_topframe.grid(row=1, column=1, sticky='nw')
-#Available Event Culling
-Tab_EventCulling_available=Frame(Tab_EventCulling_topframe)
-Tab_EventCulling_available.grid(row=1, column=1)
-
-Tab_EventCulling_topframe_height="20"
-
-Tab_EventCulling_available_label=Label(Tab_EventCulling_available, text="Event Culling", font=("helvetica", 15), anchor='nw')
-Tab_EventCulling_available_label.grid(row=1, column=1, sticky="NW", pady=(10, 5))
-Tab_EventCulling_available_listbox_frame=Frame(Tab_EventCulling_available)
-Tab_EventCulling_available_listbox=Listbox(Tab_EventCulling_available_listbox_frame, width="30", height=Tab_EventCulling_topframe_height)
-Tab_EventCulling_available_listbox_listscrollbar=Scrollbar(Tab_EventCulling_available_listbox_frame, width=scrollbar_width)
-
-
-Tab_EventCulling_available_listbox.config(yscrollcommand=Tab_EventCulling_available_listbox_listscrollbar.set)
-Tab_EventCulling_available_listbox_listscrollbar.config(command=Tab_EventCulling_available_listbox.yview)
-
-
-for values in testfeatures:
-    Tab_EventCulling_available_listbox.insert(END, values)
-Tab_EventCulling_available_listbox_listscrollbar.pack(side=RIGHT, fill=BOTH)
-Tab_EventCulling_available_listbox.pack()
-Tab_EventCulling_available_listbox_frame.grid(row=2, column=1)
-#####
-
-#####buttons to choose or remove Event culling
-Tab_EventCulling_Buttons=Frame(Tab_EventCulling_topframe)
-Tab_EventCulling_Buttons.grid(row=1, column=2)
-
-Tab_EventCulling_buttonwidth="11"
-
-Tab_EventCulling_Buttons_add=Button(Tab_EventCulling_Buttons, width=Tab_EventCulling_buttonwidth, text="Add", command=todofunc)
-Tab_EventCulling_Buttons_add.grid(row=1, column=1, sticky="NW")
-
-Tab_EventCulling_Buttons_remove=Button(Tab_EventCulling_Buttons, width=Tab_EventCulling_buttonwidth, text="Remove", command=todofunc)
-Tab_EventCulling_Buttons_remove.grid(row=2, column=1, sticky="NW")
-
-Tab_EventCulling_Buttons_clear=Button(Tab_EventCulling_Buttons, width=Tab_EventCulling_buttonwidth, text="Clear", command=todofunc)
-Tab_EventCulling_Buttons_clear.grid(row=3, column=1, sticky="NW")
-#####
-
-#####selected event culling
-Tab_EventCulling_Selected=Frame(Tab_EventCulling_topframe)
-Tab_EventCulling_Selected.grid(row=1, column=3)
-
-Tab_EventCulling_Selected_label=Label(Tab_EventCulling_Selected, text="Selected", font=("helvetica", 15), anchor='nw')
-Tab_EventCulling_Selected_label.grid(row=1, column=1, sticky="W", pady=(10, 5))
-Tab_EventCulling_Selected_listbox=Listbox(Tab_EventCulling_Selected, width="38", height=Tab_EventCulling_topframe_height)
-
-Tab_EventCulling_Selected_listbox.grid(row=2, column=1)
-#####
-
-#reconfiguring buttons for event culling
-Tab_EventCulling_Buttons_add.configure(command=\
-    lambda:select_features(Tab_EventCulling_available_listbox, [Tab_EventCulling_Selected_listbox, Tab_RP_EventCulling_Listbox], Tab_EventCulling_available_listbox.curselection(), "add"))
-Tab_EventCulling_Buttons_clear.configure(command=\
-    lambda:select_features(None, [Tab_EventCulling_Selected_listbox, Tab_RP_EventCulling_Listbox], None, "clear"))
-Tab_EventCulling_Buttons_remove.configure(command=\
-    lambda:select_features(None, [Tab_EventCulling_Selected_listbox, Tab_RP_EventCulling_Listbox], Tab_EventCulling_Selected_listbox.curselection(), "remove"))
-
-
-#####parameters frame
-Tab_EventCulling_Parameters=Frame(Tab_EventCulling_topframe)
-Tab_EventCulling_Parameters.grid(row=1, column=4, sticky=NW)
-Tab_EventCulling_ParametersLabel=Label(Tab_EventCulling_Parameters, text="Parameters", font=("helvetica", 15))
-Tab_EventCulling_ParametersLabel.pack(pady=(10, 5))
-Tab_EventCulling_Parameters_Dynamic=Frame(Tab_EventCulling_Parameters, relief=SUNKEN)
-Tab_EventCulling_Parameters_Dynamic.pack()
-
-
-
-#####descriptions frame
-Tab_EventCulling_Description=Frame(Tab_EventCulling_topframe)
-Tab_EventCulling_Description.grid(row=2, column=1, columnspan=5, sticky="NW")
-
-Tab_EventCulling_DescriptionLabel=Label(Tab_EventCulling_Description, text="Description", font=("helvetica", 15), anchor='nw')
-Tab_EventCulling_DescriptionLabel.grid(row=1, column=1, sticky="NW", pady=(10, 5))
-Tab_EventCulling_DescriptionText=Text(Tab_EventCulling_Description, height='6')
-Tab_EventCulling_DescriptionText.grid(row=2, column=1, sticky="NW")
-
-
-# ANALYSIS METHODS TAB #######################################################################################################################################
-
-# todo
-
-
+if debug>=2:
+    _=0
+    for j in generated_widgets:
+        _+=len(j)
+    print("size of 'generated_widgets' dict:", _)
 
 
 
 #ABOVE ARE THE CONFIGS FOR EACH TAB
 
 bottomframe=Frame(topwindow, height=150, width=570)
-bottomframe.pack()
+bottomframe.columnconfigure(0, weight=1)
+bottomframe.rowconfigure(1, weight=1)
+bottomframe.grid(pady=10, row=1, sticky='swen')
 
-FinishButton=Button(bottomframe, text="Finish & Review", command=lambda:switch_tabs(tabs, "choose", 5))#note: this button has a hard-coded tab number
-PreviousButton=Button(bottomframe, text="🠔 Previous", command=lambda:switch_tabs(tabs, "previous"))
-NextButton=Button(bottomframe, text="Next ➞", command=lambda:switch_tabs(tabs, "next"))
+buttomButton_width=20
+for c in range(6):
+    bottomframe.columnconfigure(c, weight=10)
 
-FinishButton.pack(side=RIGHT)
-PreviousButton.pack(side=LEFT)
-NextButton.pack(side=LEFT)
+FinishButton=Button(bottomframe, text="Finish & Review", activebackground=accent_color_light, bg=accent_color_mid, command=lambda:switch_tabs(tabs, "choose", 5))#note: this button has a hard-coded tab number
+PreviousButton=Button(bottomframe, text="<< Previous", activebackground=accent_color_light, bg=accent_color_mid, command=lambda:switch_tabs(tabs, "previous"))
+NextButton=Button(bottomframe, text="Next >>", activebackground=accent_color_light, bg=accent_color_mid, command=lambda:switch_tabs(tabs, "next"))
+Notes_Button=Button(bottomframe, text="Notes", activebackground=accent_color_light, bg=accent_color_mid, command=notepad)
 
-Notes_Button=Button(bottomframe, text="Notes", command=notepad)
-Notes_Button.pack(side=RIGHT)
+Label(bottomframe).grid(row=0, column=0)
+Label(bottomframe).grid(row=0, column=5)
+
+PreviousButton.grid(row=0, column=1, sticky='swen')
+NextButton.grid(row=0, column=2, sticky='swen')
+Notes_Button.grid(row=0, column=3, sticky='swen')
+FinishButton.grid(row=0, column=4, sticky='swen')
 
 
 #starts app
