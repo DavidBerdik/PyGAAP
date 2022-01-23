@@ -4,10 +4,10 @@
 # 
 ############### !! See PyGaap_gui_functions_map.txt for a rough outline of Tkinter widgets and function calls.
 #
-versiondate="2022.01.22"
+versiondate="2022.01.23"
 #Michael Fang, Boston University.
 
-debug=0 # debug level. 0 = no debug info.
+debug=0 # debug level. 0 = no debug info. 3 = all function calls
 
 #REQUIRED MODULES BELOW. USE pip OR pip3 IN YOUR TERMINAL TO INSTALL.
 
@@ -18,7 +18,9 @@ from tkinter.filedialog import askopenfilename
 from tkinter.tix import CheckList
 from turtle import bgcolor
 
-from matplotlib.style import available
+from dbus import StarterBus
+
+from backend.API import API
 
 topwindow=Tk() #this is the top-level window when you first open PyGAAP
 topwindow.title("PyGAAP (GUI)")
@@ -30,24 +32,52 @@ topwindow.columnconfigure(0, weight=1)
 
 ################### AESTHETICS
 dpi=topwindow.winfo_fpixels('1i')
+dpi_setting=None
 if dpi>72:
+    if debug>=2: print("1x UI scale")
+    dpi_setting=1
     topwindow.geometry("1000x670")
     #topwindow.minsize(height=400, width=600)
     scrollbar_width=16
 else:
+    if debug>=2: print("2x UI scale")
+    dpi_setting=2
     topwindow.geometry("2000x1150")
     #topwindow.minsize(height=800, width=1100)
     scrollbar_width=28
 
+if dpi_setting==None: raise ValueError("Unknown DPI setting %s."% (str(dpi_setting)))
+
 accent_color_mid="#c9f6fc"
 accent_color_dark="#7eedfc"
 accent_color_light="#e0f9fc"
+if debug>=3: print("Accent colors:", accent_color_dark, accent_color_mid, accent_color_light)
 
 ###############################
+#### BACKEND API ##########################
+backendAPI=API("docs lmao")
+##########################################
+###############################
 
-#BELOW ARE ALL THE FUNCTIONS
+#BELOW ARE UTILITY FUNCTIONS
 def todofunc(): #place holder "to-do function"
     print("To-do function")
+    return None
+
+statusbar=None
+statusbar_label=None
+def status_update(displayed_text, conditional=None):
+    """
+    updates the text in the status bar.
+    if conditional is specified: change label if True, don't change if False.
+    """
+    if debug>=3: print("status_update(%s, condition=%s)" %(displayed_text, conditional))
+    global statusbar
+    global statusbar_label
+    if conditional==None:
+        statusbar_label.config(text=displayed_text)
+    elif conditional==True:
+        statusbar_label.config(text=displayed_text)
     return None
 
 def select_features(ListBoxAv: Listbox, ListBoxOp: list, feature, function: str):
@@ -102,8 +132,10 @@ def find_parameters(frame_to_update: Frame, listbox: Listbox, displayed_params: 
     # list_of_params: list of available parameters for each feature. This will be generated or read from the backend. If None, will use a test list.
     
     # DO NOT ASSIGN NEW list_of_params. ONLY USE LIST METHODS ON THIS.
-
+    if debug>=3: print("find_parameters(frame_to_update=%s, listbox=%s, displayed_params=%s, list_of_params=%s, clear=%s)" %(frame_to_update, listbox, displayed_params, list_of_params, clear))
     if list_of_params==None:
+        if debug>=1:
+            print("Using place-holder list of parameters.")
         list_of_params={"first": [{"options": range(1, 20), "default": 1, "type": "Entry", "label": "first, param 1"},
             {"options": ["option1", "option2"], "default": 0, "type": "OptionMenu", "label": "first, param 2"}],
             "fifth": [{"options": range(0, 10), "default": 0, "type": "Entry", "label": "fifth, param 1"}]}
@@ -113,7 +145,6 @@ def find_parameters(frame_to_update: Frame, listbox: Listbox, displayed_params: 
     
     # first get the parameters to display from list.
     if len(listbox.curselection())>0:
-        print("using place-holder parameters list")
         parameters_to_display=list_of_params.get(listbox.get(listbox.curselection()))
     else: return None
     
@@ -148,50 +179,52 @@ def find_parameters(frame_to_update: Frame, listbox: Listbox, displayed_params: 
     frame_to_update.columnconfigure(0, weight=1)
     frame_to_update.columnconfigure(1, weight=3)
 
-
     return None
-    
 
-def find_feature(section, directory):
-    """Universal find feature function for:
-    canonicizers, event drivers, event culling, analysis methods, and distance functions.
-    As the app is starting up,
-    this function looks for py or text files (or both?) in PyGaap Directory for those features and extracts information like:
-    description to display in the discription textbox;
-    location of those py files so PyGAAP GUI can use it;
-    parameters of a feature to be stored for execution;
 
-    -others to be determined
-    """
-    #section: categories in which to find the features like Canonicizers, Event Drivers, Event Cullers etc.
-    #directory: where to parse the file tree to find the features.
-    pass
 
-def process(params: dict, check_listboxes: list, check_labels: list, process_button: Button):
+processWindow=None
+def process(params: dict, check_listboxes: list, check_labels: list, process_button: Button, click: bool=False):
     """
     Process all input files with the parameters in all tabs.
     input: unknown authors, known authors, all listboxes.
     """
     # check_listboxes: list of listboxes that shouldn't be empty.
     # check_labels: list of labels whose text colors need to be updated upon checking the listboxes.
-
+    if debug>=3: print("process(params=%s, check_listboxes=%s, check_labels=%s, process_button=%s, click=%s)" %(params, check_listboxes, check_labels, process_button, click))
     all_set=True
     # first check if the listboxes in check_listboxes are empty. If empty
-    process_button.config(fg="#333333", state=NORMAL, text="Process")
+    process_button.config(state=NORMAL, text="Process", activebackground=accent_color_light, bg=accent_color_mid)
     for lb_index in range(len(check_listboxes)):
         if check_listboxes[lb_index].size()==0:
-            check_labels[lb_index].config(fg="#FF8888")
+            check_labels[lb_index].config(fg="#e24444", activeforeground="#e24444")
             all_set=False
-            process_button.config(fg="#333333", state=DISABLED, text="Process [missing parameters]")
-        else:
-            check_labels[lb_index].config(fg="black")
+            process_button.config(fg="#333333", state=DISABLED, text="Process [missing parameters]", activebackground="light grey", bg="light grey")
+            # if something is missing
+        else: # if all is ready
+            check_labels[lb_index].config(fg="black", activeforeground="black")
     process_button.config(fg="black")
-    if params==None or len(params)==0: return True
+    if not all_set or click==False:
+        return None
+
+    status_update("Starting process...")
+
+    global processWindow
+
+    processWindow=Toplevel()
+    processWindow.title("Process Window")
+    if dpi_setting==1:
+        processWindow.geometry("200x100")
+        progressBar=ttk.Progressbar(processWindow, length=200, mode="indeterminate")
+    elif dpi_setting==2:
+        processWindow.geometry("450x150")
+        progressBar=ttk.Progressbar(processWindow, length=400, mode="indeterminate")
     
-    if all_set==True:
-        print("Process: to-do")
-    else:
-        print("Process: missing options.")
+    progressBar.pack(anchor=CENTER, pady=40)
+    processWindow.bind("<Destroy>", lambda event, b="":status_update(b))
+    processWindow.grab_set()
+    progressBar.start()
+
     return None
 
 
@@ -202,16 +235,17 @@ def displayAbout():
     global versiondate
     global AboutPage
     """Displays the About Page"""
+    if debug>=3: print("displayAbout()")
     try:
         AboutPage.lift()
         return None
     except:
         pass
     AboutPage=Toplevel()
-    AboutPage.title("About PyGaap")
-    if dpi>72:
+    AboutPage.title("About PyGAAP")
+    if dpi_setting==1:
         AboutPage.geometry("600x300")
-    else:
+    elif dpi_setting==2:
         AboutPage.geometry("1200x600")
     AboutPage.resizable(False, False)
     AboutPage_logosource=PhotoImage(file="logo.png")
@@ -238,6 +272,7 @@ def notepad():
     global Notes_content
     global NotepadWindow
     # prevents spam-spawning. took me way too long to figure this out
+    if debug>=3: print("notepad()")
     try:
         NotepadWindow.lift()
     except:
@@ -258,11 +293,13 @@ def Notepad_Save(text, window):
     global Notes_content
     Notes_content=text
     window.destroy()
+    if debug>=3: print("Notepad_Save()")
     return None
 
 def switch_tabs(notebook, mode, tabID=0):
     """called by the next button and the tab lables themselves.
     if called by next button, returns the next tab. if called by tab label click, gets that tab"""
+    if debug>=3: print("switch_tabs(mode=%s, tabID=%i)" %(mode, tabID))
     if mode=="next":
         try:
             notebook.select(notebook.index(notebook.select())+1)
@@ -289,8 +326,8 @@ def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
     #AllowDuplicates is whether the listbox allows duplicates.
     #if listbox does not allow duplicates, item won't be added to the listbox and this prints a message to the terminal.
     #liftwindow is the window to go back to focus when the file browser closes
-    if debug>=1:
-        print("addFile")
+    if debug>=1: print("addFile")
+    elif debug>=3: print("addFile(ListboxOp=%s, AllowDuplicates=%s)", ListboxOp, AllowDuplicates)
     filename=askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")), title=WindowTitle)
     if liftwindow != None:
         liftwindow.lift(topwindow)
@@ -323,6 +360,7 @@ def authorsListUpdater(listbox):
     global KnownAuthors
     global KnownAuthorsList
     listbox.delete(0, END)
+    if debug>=3: print("authorsListUpdater()")
     KnownAuthorsList=[]
     for authorlistindex in range(len(KnownAuthors)):#Authors
         listbox.insert(END, KnownAuthors[authorlistindex][0])
@@ -345,6 +383,7 @@ def authorSave(window, listbox, author, documentsList, mode):
     #documentsList: list of documents entered in the listbox in the authorsList window
     #mode: add or edit
     global KnownAuthors
+    if debug>=3: print("authorSave(mode=%s)" %(mode))
     if mode=="add":
         if (author != None and author.strip() !="") and (documentsList !=None and len(documentsList)!=0):  
             AuthorIndex=0
@@ -388,7 +427,7 @@ def authorsList(authorList, mode):
     #
     global KnownAuthors
     global KnownAuthorsList
-
+    if debug>=3: print("authorsList(mode=%s)"%(mode))
     if mode=="add":
         title="Add Author"
         mode='add'
@@ -439,9 +478,9 @@ def authorsList(authorList, mode):
     AuthorWindow=Toplevel()
     AuthorWindow.grab_set()#Disables main window when the add/edit author window appears
     AuthorWindow.title(title)
-    if dpi>72:
+    if dpi_setting==1:
         AuthorWindow.geometry("550x340")
-    else:
+    elif dpi_setting==2:
         AuthorWindow.geometry("1170x590")
 
 
@@ -485,9 +524,7 @@ def authorsList(authorList, mode):
     AuthorWindow.mainloop()
     return None
 
-
-#ABOVE ARE ALL THE FUNCTIONS
-
+#ABOVE ARE UTILITY FUNCTIONS
 
 #Test List for features
 testfeatures=["first", "second", "third", "fourth", 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth']\
@@ -619,7 +656,7 @@ Tab_RP_Process_Button=Button(Tabs_Frames["Tab_ReviewProcess"], text="Process", w
 Tab_RP_Process_Button.config(\
     command=lambda lb=[Tab_RP_EventDrivers_Listbox, Tab_RP_AnalysisMethods_Listbox],\
         labels=[Tab_RP_EventDrivers_Button, Tab_RP_AnalysisMethods_Button],\
-            button=Tab_RP_Process_Button:process("test", lb, labels, button))
+            button=Tab_RP_Process_Button:process("test", lb, labels, button, True))
 
 Tab_RP_Process_Button.grid(row=2, column=0, columnspan=3, sticky="se", pady=5, padx=20)
 
@@ -751,16 +788,7 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
     objects["top_frame"]=Frame(tab_frame)
     #objects["top_frame"].grid(row=0, column=0, sticky="nwes")
     objects["top_frame"].place(relx=0, rely=0, relwidth=1, relheight=topheight)
-    '''
-    objects["top_frame"].columnconfigure(0, weight=1)
-    objects["top_frame"].columnconfigure(2, weight=1)
-    if parameters_content!=None:
-        objects["top_frame"].columnconfigure(3, weight=1)
-    objects["top_frame"].rowconfigure(0, weight=2)
-    objects["top_frame"].rowconfigure(1, weight=1)
-    '''
 
-    
     # Layer 1: main frames
     objects["available_frame"]=Frame(objects["top_frame"])
     #objects["available_frame"].grid(row=0, column=0, sticky="nwes")
@@ -803,8 +831,6 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
 
         objects["available_listboxes"][-1].append(Listbox(objects["available_listboxes"][-1][0], selectbackground=accent_color_mid))
         objects["available_listboxes"][-1][2].pack(expand=True, fill=BOTH, side=LEFT)
-        for values in testfeatures:
-            objects["available_listboxes"][-1][2].insert(END, values)
 
         objects["available_listboxes"][-1].append(Scrollbar(objects["available_listboxes"][-1][0], width=scrollbar_width, activebackground=accent_color_light, bg=accent_color_mid, command=objects["available_listboxes"][-1][2].yview))
         objects["available_listboxes"][-1][3].pack(side=RIGHT, fill=BOTH)
@@ -887,6 +913,18 @@ generated_widgets['EventCulling']=create_feature_tab(Tabs_Frames["Tab_EventCulli
 generated_widgets['AnalysisMethods']=create_feature_tab(Tabs_Frames["Tab_AnalysisMethods"], ["Analysis Methods", "Distance Functions"], RP_listbox=Tab_RP_AnalysisMethods_Listbox)
 
 
+# adding items to listboxes from the backendAPI.
+#print(backendAPI.canonicizers)
+for canonicizer in backendAPI.canonicizers:
+    generated_widgets["Canonicizers"]["available_listboxes"][0][2].insert(END, canonicizer)
+for driver in backendAPI.eventDrivers:
+    generated_widgets["EventDrivers"]["available_listboxes"][0][2].insert(END, driver)
+for distancefunc in backendAPI.distanceFunctions:
+    generated_widgets["AnalysisMethods"]["available_listboxes"][1][2].insert(END, distancefunc)
+for method in backendAPI.analysisMethods:
+    generated_widgets["AnalysisMethods"]["available_listboxes"][0][2].insert(END, method)
+#######
+
 if debug>=2:
     _=0
     for j in generated_widgets:
@@ -902,7 +940,6 @@ bottomframe.columnconfigure(0, weight=1)
 bottomframe.rowconfigure(1, weight=1)
 bottomframe.grid(pady=10, row=1, sticky='swen')
 
-buttomButton_width=20
 for c in range(6):
     bottomframe.columnconfigure(c, weight=10)
 
@@ -919,6 +956,13 @@ NextButton.grid(row=0, column=2, sticky='swen')
 Notes_Button.grid(row=0, column=3, sticky='swen')
 FinishButton.grid(row=0, column=4, sticky='swen')
 
+statusbar=Frame(topwindow, bd=1, relief=SUNKEN)
+statusbar.grid(row=2, sticky="swe")
+
+welcome_message="By David Berdik and Michael Fang. Version date: %s." %(versiondate)
+statusbar_label=Label(statusbar, text=welcome_message, anchor=W)
+statusbar_label.pack(anchor="e")
+statusbar_label.after(3000, lambda:status_update("", statusbar_label['text']==welcome_message))
 
 #starts app
 topwindow.mainloop()
