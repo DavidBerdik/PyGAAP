@@ -5,6 +5,7 @@ import backend.Histograms as histograms
 # It's okay to omit _NoDistanceFunction_ if it would be set to False.
 '''
 Changes: added NoDistanceFunctionTest.
+prefixed "_" to class variables not exposed to the GUI.
 '''
 
 
@@ -37,16 +38,16 @@ class AnalysisDriver(ABC):
 		self.distance = distance
 		
 class CentroidDriver(AnalysisDriver):
-	authorHistograms = None
+	_authorHistograms = None
 	
 	def train(self, knownDocuments):
 		'''Get a mean normalized histogram for each known author.'''
-		self.authorHistograms = histograms.generateKnownDocsMeanHistograms(histograms.generateKnownDocsNormalizedHistogramSet(knownDocuments))
+		self._authorHistograms = histograms.generateKnownDocsMeanHistograms(histograms.generateKnownDocsNormalizedHistogramSet(knownDocuments))
 		
 	def analyze(self, unknownDocument):
 		'''Compare a normalized histogram of unknownDocument against the normalized known document histograms and return a dictionary of distances.'''
 		results = dict()
-		for author, knownHist in self.authorHistograms.items():
+		for author, knownHist in self._authorHistograms.items():
 			results[author] = self.distance.distance(histograms.normalizeHistogram(histograms.generateAbsoluteHistogram(unknownDocument)), knownHist)
 		return results
 	
