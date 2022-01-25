@@ -2,6 +2,11 @@ from abc import ABC, abstractmethod
 from nltk import ngrams
 from nltk.tokenize import word_tokenize, sent_tokenize
 
+'''
+changes:
+added __variable_options, __variable_GUItype to classes with class variables.
+'''
+
 # An abstract EventDriver class.
 class EventDriver(ABC):
 	@abstractmethod
@@ -22,10 +27,12 @@ class EventDriver(ABC):
 	def displayDescription():
 		pass
 		
-		
+# REFERENCE CLASS FOR PyGAAP GUI.
 class CharacterNGramEventDriver(EventDriver):
 	'''Event Driver for Character N-Grams'''
 	n = 2
+	_variable_options={"n": list(range(2, 8))} # for PyGAAP GUI to know which options to list/are valid
+	_variable_GUItype={"n": "OptionMenu"}		# for PyGAAP GUI to know what kind of tkinter widget to use to set the variables. Can be "OptionMenu" or "Entry"
 	
 	def createEventSet(self, procText):
 		'''Returns a list containing the desired character n-grams.'''
@@ -41,8 +48,9 @@ class CharacterNGramEventDriver(EventDriver):
 		'''Sets the n parameter (length) for the Character N-Gram Event Driver. params is a list. '''
 		self.n = params[0]
 
-	def displayDescription():
+	def displayDescription(): # The text to display in PyGAAP GUI's description box.
 		return "Groups of N successive characters (sliding window); N is given as a parameter."
+	
 		
 class WhitespaceDelimitedWordEventDriver(EventDriver):
 	'''Event Driver for Whitespace-Delimited Words'''

@@ -16,7 +16,12 @@ class EventCulling(ABC):
 	def displayDescription():
 		'''Returns the display description for the event culler.'''
 		
-class NormalizeWhitespace(EventCulling):
+class EmptyEventCuller(EventCulling):
+	test_param1=2
+	test_param2=14
+	_variable_options={"test_param1": list(range(2, 8)), "test_param2": list(range(10, 15))} # for PyGAAP GUI to know which options to list/are valid
+	_variable_GUItype={"test_param1": "OptionMenu", "test_param2": "OptionMenu"}		# for PyGAAP GUI to know what kind of tkinter widget to use to set the variables. Can be "OptionMenu" or "Entry"
+	
 	def process(self, procText):
 		pass
 
