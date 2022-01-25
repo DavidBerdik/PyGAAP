@@ -17,6 +17,10 @@ class EventDriver(ABC):
 	@abstractmethod
 	def setParams(self, params):
 		'''Accepts a list of parameters and assigns them to the appropriate variables.'''
+
+	@abstractmethod
+	def displayDescription():
+		pass
 		
 		
 class CharacterNGramEventDriver(EventDriver):
@@ -36,6 +40,9 @@ class CharacterNGramEventDriver(EventDriver):
 	def setParams(self, params):
 		'''Sets the n parameter (length) for the Character N-Gram Event Driver. params is a list. '''
 		self.n = params[0]
+
+	def displayDescription():
+		return "Groups of N successive characters (sliding window); N is given as a parameter."
 		
 class WhitespaceDelimitedWordEventDriver(EventDriver):
 	'''Event Driver for Whitespace-Delimited Words'''
@@ -51,6 +58,9 @@ class WhitespaceDelimitedWordEventDriver(EventDriver):
 		'''This function is required, but does not do anything for this event driver.'''
 		pass
 		
+	def displayDescription():
+		return "Returns a list of words where a word is considered a whitespace-delimited unit."
+
 class NltkWordTokenizerEventDriver(EventDriver):
 	'''Event Driver for using the NLTK Word Tokenizer.'''
 	
@@ -64,6 +74,9 @@ class NltkWordTokenizerEventDriver(EventDriver):
 	def setParams(self, params):
 		'''This function is required, but does not do anything for this event driver.'''
 		pass
+
+	def displayDescription():
+		return "Word tokenizer using the Natural Language Took Kit's definition."
 		
 class SentenceEventDriver(EventDriver):
 	'''Event Driver for getting sentences using the NLTK Sentence Tokenizer.'''
@@ -78,3 +91,7 @@ class SentenceEventDriver(EventDriver):
 	def setParams(self, params):
 		'''This function is required, but does not do anything for this event driver.'''
 		pass
+
+	def displayDescription():
+		return "Returns a list of sentences as defined by the NLTK Sentence Tokenizer."
+

@@ -1,6 +1,13 @@
 from abc import ABC, abstractmethod
 import backend.Histograms as histograms
 
+# if an anlysis method does not allow a distance function to be set, add a attribute called _NoDistanceFunction_ and set it to True.
+# It's okay to omit _NoDistanceFunction_ if it would be set to False.
+'''
+Changes: added NoDistanceFunctionTest.
+'''
+
+
 # An abstract AnalysisDriver class.
 class AnalysisDriver(ABC):
 	distance = None
@@ -18,6 +25,11 @@ class AnalysisDriver(ABC):
 	@abstractmethod
 	def displayName():
 		'''Returns the display name for the given analysis method.'''
+		pass
+
+	@abstractmethod
+	def displayDescription():
+		'''Returns the description of the method.'''
 		pass
 		
 	def setDistanceFunction(self, distance):
@@ -40,3 +52,13 @@ class CentroidDriver(AnalysisDriver):
 	
 	def displayName():
 		return "Centroid Driver"
+
+	def displayDescription():
+		return "Computes one centroid per Author.\nCentroids are the average relitive frequency of events over all docuents provided.\ni=1 to n ΣfrequencyIn_i(event)."
+
+class NoDistanceFunctionTest(AnalysisDriver):
+	_NoDistanceFunction_=True
+	def train(self): pass
+	def analyze(self): pass
+	def displayName(): return "No Distance Function Test"
+	def displayDescription(): return "An empty method to test disabling of the distance function listbox."
