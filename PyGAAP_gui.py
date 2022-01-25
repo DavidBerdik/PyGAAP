@@ -138,6 +138,7 @@ def select_features(ListBoxAv: Listbox, ListBoxOp: list, function: str):
         if debug>1: print("select_features: add")
         try:
             if type(ListBoxOp[0])==Listbox: selectedfeature=ListBoxAv[0].get(ListBoxAv[0].curselection())
+            elif len(ListBoxAv)>1 and ListBoxAv[1]['state']==DISABLED: selectedfeature=selectedfeature=(ListBoxAv[0].get(ListBoxAv[0].curselection()), "NA")
             else: selectedfeature=[ListBoxAv[0].get(ListBoxAv[0].curselection()), ListBoxAv[1].get(ListBoxAv[1].curselection())]
         except:
             status_update("Nothing selected.")
@@ -152,23 +153,52 @@ def select_features(ListBoxAv: Listbox, ListBoxOp: list, function: str):
         raise ValueError("Bug: All escaped in 'select_features' function.")
     return None
 
+def CheckDistanceFunctionListbox(lbAv, lbOp: Listbox):
+    """Enable or disable the 'Distance Functions' listbox depending on whether the item selected in 'Analysis Methods' allows using DFs."""
+    if backendAPI.analysisMethods[lbAv.get(lbAv.curselection())].__dict__.get("_NoDistanceFunction_")==True: lbOp.config(state=DISABLED)
+    else: lbOp.config(state=NORMAL)
 
-def find_parameters(param_frame: Frame, listbox: Listbox, displayed_params: list, list_of_params: dict=None, clear: bool=False):
+def find_description(desc: Text, listbox: Listbox or ttk.Treeview, APIdict: dict):
+    """find description of a feature."""
+    # desc: the tkinter Text object to display the description.
+    # listbox: the Listbox or Treeview object to get the selection from
+    # APIdict: the API dictionary that contains the listed method classes from the backend.
+    #   example -- APIdict could be backendAPI.canonicizers.
+    
+    if type(listbox)==Listbox:
+        try:
+            name=listbox.get(listbox.curselection())
+            description_string=name+":\n"+APIdict[name].displayDescription()
+        except: description_string="No description" # the feature does not have description.
+    if type(listbox)==ttk.Treeview:
+        am_name=listbox.item(listbox.selection())["values"][0]
+        df_name=listbox.item(listbox.selection())["values"][1]
+        am_d, df_d="No description", "No description"
+        try: am_d=backendAPI.analysisMethods[am_name].displayDescription()
+        except: pass
+        try: df_d=backendAPI.analysisMethods[df_name].displayDescription()
+        except: pass
+        if df_name=="NA": df_d="Not applicable"
+        description_string=am_name+":\n"+am_d+"\n\n"+df_name+":\n"+df_d
+
+    desc.config(state=NORMAL)
+    desc.delete(1.0, END)
+    desc.insert(END, description_string)
+    desc.config(state=DISABLED)
+    return None
+
+
+def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displayed_params: list, clear: bool=False, **options):
     """find parameters and description in some features to display and set"""
     # feature: individual event drivers, event culling, or analysis methods.
     # param_frame: the tkinter frame that displays the parameters.
     # listbox: the tkinter listbox that has the selected parameters.
     # displayed_params: a list of currently displayed parameter options.
-    # list_of_params: list of available parameters for each feature. This will be generated or read from the backend. If None, will use a test list.
     
-    # DO NOT ASSIGN NEW list_of_params because it's passed in by reference. ONLY USE LIST METHODS ON THIS.
-    if debug>=3: print("find_parameters(param_frame=%s, listbox=%s, displayed_params=%s, list_of_params=%s, clear=%s)" %(param_frame, listbox, displayed_params, list_of_params, clear))
-    if list_of_params==None:
-        if debug>=1:
-            print("Using place-holder list of parameters.")
-        list_of_params={"first": [{"options": range(1, 20), "default": 1, "type": "Entry", "label": "first, param 1"},
-            {"options": ["option1", "option2"], "default": 0, "type": "OptionMenu", "label": "first, param 2"}],
-            "fifth": [{"options": range(0, 10), "default": 0, "type": "Entry", "label": "fifth, param 1"}]}
+    if debug>=3: print("find_parameters(param_frame=%s, listbox=%s, displayed_params=%s, clear=%s)" %(param_frame, listbox, displayed_params, clear))
+    list_of_params={"first": [{"options": range(1, 20), "default": 1, "type": "Entry", "label": "first, param 1"},
+        {"options": ["option1", "option2"], "default": 0, "type": "OptionMenu", "label": "first, param 2"}],
+        "fifth": [{"options": range(0, 10), "default": 0, "type": "Entry", "label": "fifth, param 1"}]}
         # structure: dictionary of list [features] of dictionaries [parameters]
         # the "default" item is always used as a key to "options".
         # i.e. the default value of an entry is always "options"["default"] and never "default".value.
@@ -207,6 +237,9 @@ def find_parameters(param_frame: Frame, listbox: Listbox, displayed_params: list
         displayed_params[-1].grid(row=0, column=0, columnspan=2, sticky=W)
     param_frame.columnconfigure(0, weight=1)
     param_frame.columnconfigure(1, weight=3)
+
+    ################################################
+    params=options.get("params")
     return None
 
 
@@ -224,7 +257,9 @@ def process(params: dict, check_listboxes: list, check_labels: list, process_but
     # first check if the listboxes in check_listboxes are empty. If empty
     process_button.config(state=NORMAL, text="Process", )
     for lb_index in range(len(check_listboxes)):
-        if check_listboxes[lb_index].size()==0:
+        try: size=len(check_listboxes[lb_index].get_children())
+        except: size=check_listboxes[lb_index].size()
+        if size==0:
             check_labels[lb_index].config(fg="#e24444", activeforeground="#e24444")
             all_set=False
             process_button.config(fg="#333333", state=DISABLED, text="Process [missing parameters]", activebackground="light grey", bg="light grey")
@@ -866,7 +901,7 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
         objects["available_listboxes"][-1][3].pack(side=RIGHT, fill=BOTH)
         objects["available_listboxes"][-1][2].config(yscrollcommand=objects["available_listboxes"][-1][3].set)
 
-        counter+=1
+        counter+=1   
     
     objects["selected_listboxes"]=[]
     objects["selected_listboxes"].append([Frame(objects["selected_frame"])])
@@ -875,7 +910,7 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
     objects["selected_listboxes"][-1].append(Label(objects["selected_listboxes"][-1][0], text="Selected", font=("Helvetica", 15)))
     objects["selected_listboxes"][-1][1].pack(pady=(10, 5), side=TOP, anchor=NW)
 
-    if extra.get("analysis")==True:
+    if parameters_content=="AnalysisMethods":
         # for analysis methods, use two listboxes scrolled by the same scrollbar.
         objects["selected_listboxes"][-1].append(ttk.Treeview(objects["selected_listboxes"][-1][0],
             columns=("AM", "DF")))
@@ -884,13 +919,12 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
         objects["selected_listboxes"][-1][2].heading("DF", text="Distance", anchor=W)
         objects["selected_listboxes"][-1][2].pack(expand=True, fill=BOTH, side=LEFT)
 
-
         objects["selected_listboxes"][-1].append(Scrollbar(objects["selected_listboxes"][-1][0], width=scrollbar_width, command=objects["selected_listboxes"][-1][2].yview))
         objects["selected_listboxes"][-1][3].pack(side=RIGHT, fill=BOTH)
         objects["selected_listboxes"][-1][2].config(yscrollcommand=objects["selected_listboxes"][-1][3].set)
 
     else:
-        objects["selected_listboxes"][-1].append(Listbox(objects["selected_listboxes"][-1][0], ))
+        objects["selected_listboxes"][-1].append(Listbox(objects["selected_listboxes"][-1][0]))
         objects["selected_listboxes"][-1][2].pack(expand=True, fill=BOTH, side=LEFT)
 
         objects["selected_listboxes"][-1].append(Scrollbar(objects["selected_listboxes"][-1][0], width=scrollbar_width, command=objects["selected_listboxes"][-1][2].yview))
@@ -899,8 +933,8 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
 
     Label(objects["buttons_frame"], text="", height=2).pack() # empty label to create space above buttons
     counter=0
-    if extra.get("extra_buttons")==None: pass
-    elif extra.get("extra_buttons")=="Canonicizers":
+
+    if parameters_content=="Canonicizers":
         extra.get("canonicizers_format")
         extra.get("canonicizers_format").set("All")
         CanonicizerFormatOptions=["All", "Generic", "Doc", "PDF", "HTML"]
@@ -912,11 +946,11 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
     RP_listbox=extra.get("RP_listbox") # this is the listbox in the "Review and process" page to update when user adds a feature in previous pages.
 
     
-    objects["buttons_add"]=Button(objects["buttons_frame"], width="11", text="Add", anchor='s',
+    objects["buttons_add"]=Button(objects["buttons_frame"], width="11", text=">>Add", anchor='s',
         command=lambda:select_features(listboxAvList, [objects["selected_listboxes"][0][2], RP_listbox], "add"))
     objects["buttons_add"].pack(anchor=CENTER, fill=X)
 
-    objects["buttons_remove"]=Button(objects["buttons_frame"], width="11", text="Remove", anchor='s',
+    objects["buttons_remove"]=Button(objects["buttons_frame"], width="11", text="<<Remove", anchor='s',
         command=lambda:select_features(None, [objects["selected_listboxes"][0][2], RP_listbox], "remove"))
     objects["buttons_remove"].pack(anchor=CENTER, fill=X)
 
@@ -931,9 +965,9 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
     objects["description_box"].pack(fill=BOTH, expand=True, side=LEFT)
     objects["description_box_scrollbar"]=Scrollbar(objects["description_frame"], width=scrollbar_width, command=objects["description_box"].yview)
     objects["description_box"].config(yscrollcommand=objects["description_box_scrollbar"].set)
-    objects["description_box_scrollbar"].pack(side=RIGHT, fill=BOTH)
+    objects["description_box_scrollbar"].pack(side=LEFT, fill=BOTH)
 
-    if parameters_content=="EventDrivers":
+    if parameters_content==("EventDrivers" or "EventCulling"):
         displayed_parameters=extra.get("displayed_parameters")
         objects['parameters_label']=Label(objects["parameters_frame"], text="Parameters", font=("helvetica", 15), anchor=NW)
         objects['parameters_label'].pack(pady=(10, 5),anchor=W)
@@ -942,20 +976,45 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
         objects['displayed_parameters_frame'].pack(padx=20, pady=20)
 
         objects["selected_listboxes"][-1][2].bind("<<ListboxSelect>>",\
-            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dtb=objects["description_box"], dp=displayed_parameters:find_parameters(frame, lb, dp, None))
+            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp, params=parameters_content))
         objects["selected_listboxes"][-1][2].bind("<<Unmap>>",\
-            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dtb=objects["description_box"], dp=displayed_parameters:find_parameters(frame, lb, dp))
+            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp, params=parameters_content))
+        
+
     
+    elif parameters_content=="AnalysisMethods":
+        displayed_parameters=extra.get("displayed_parameters")
+        objects['parameters_label']=Label(objects["parameters_frame"], text="Parameters", font=("helvetica", 15), anchor=NW)
+        objects['parameters_label'].pack(pady=(10, 5),anchor=W)
+
+        objects['displayed_parameters_frame']=Frame(objects["parameters_frame"])
+        objects['displayed_parameters_frame'].pack(padx=20, pady=20)
+        # bind treeview widget so the description updates when an item is selected.
+        objects["selected_listboxes"][0][2].bind("<<TreeviewSelect>>", lambda event, d=objects["description_box"], lb=objects["selected_listboxes"][0][2], di=backendAPI.analysisMethods:find_description(d, lb, di))
+    
+    if parameters_content!="AnalysisMethods":
+        APIdict={"Canonicizers": backendAPI.canonicizers, "EventDrivers": backendAPI.eventDrivers, "EventCulling": backendAPI.eventCulling}
+        for f in objects["available_listboxes"]:
+            f[2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=f[2], d=APIdict[parameters_content]: find_description(t, l, d))
+        for f in objects["selected_listboxes"]:
+            f[2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=f[2], d=APIdict[parameters_content]: find_description(t, l, d))
+    else:
+        objects["available_listboxes"][0][2].bind("<<ListboxSelect>>", lambda event, lbAv=objects["available_listboxes"][0][2], lbOp=objects["available_listboxes"][1][2]:CheckDistanceFunctionListbox(lbAv, lbOp))
+        objects["available_listboxes"][0][2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=objects["available_listboxes"][0][2], d=backendAPI.analysisMethods: find_description(t, l, d))
+        objects["available_listboxes"][1][2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=objects["available_listboxes"][1][2], d=backendAPI.distanceFunctions: find_description(t, l, d))
+
     return objects
 
 generated_widgets=dict()
 
 CanonicizerFormat=StringVar()
-generated_widgets['Canonicizers']=create_feature_tab(Tabs_Frames["Tab_Canonicizers"], ["Canonicizers"], extra_buttons="Canonicizers", canonicizers_format=CanonicizerFormat, RP_listbox=Tab_RP_Canonicizers_Listbox)
-Tab_EventDrivers_Parameters_parameters_displayed=[]
-generated_widgets['EventDrivers']=create_feature_tab(Tabs_Frames["Tab_EventDrivers"], ["Event Drivers"], "EventDrivers", displayed_parameters=Tab_EventDrivers_Parameters_parameters_displayed, RP_listbox=Tab_RP_EventDrivers_Listbox)
-generated_widgets['EventCulling']=create_feature_tab(Tabs_Frames["Tab_EventCulling"], ["Event Culling"], RP_listbox=Tab_RP_EventCulling_Listbox)
-generated_widgets['AnalysisMethods']=create_feature_tab(Tabs_Frames["Tab_AnalysisMethods"], ["Analysis Methods", "Distance Functions"], RP_listbox=Tab_RP_AnalysisMethods_Listbox, analysis=True)
+generated_widgets['Canonicizers']=create_feature_tab(Tabs_Frames["Tab_Canonicizers"], ["Canonicizers"], "Canonicizers", canonicizers_format=CanonicizerFormat, RP_listbox=Tab_RP_Canonicizers_Listbox)
+Tab_EventDrivers_parameters_displayed=[]
+generated_widgets['EventDrivers']=create_feature_tab(Tabs_Frames["Tab_EventDrivers"], ["Event Drivers"], "EventDrivers", displayed_parameters=Tab_EventDrivers_parameters_displayed, RP_listbox=Tab_RP_EventDrivers_Listbox)
+Tab_EventCulling_parameters_displayed=[]
+generated_widgets['EventCulling']=create_feature_tab(Tabs_Frames["Tab_EventCulling"], ["Event Culling"], "EventCulling", displayed_parameters=Tab_EventCulling_parameters_displayed, RP_listbox=Tab_RP_EventCulling_Listbox)
+Tab_AnalysisMethods_parameters_displayed=[]
+generated_widgets['AnalysisMethods']=create_feature_tab(Tabs_Frames["Tab_AnalysisMethods"], ["Analysis Methods", "Distance Functions"], "AnalysisMethods", RP_listbox=Tab_RP_AnalysisMethods_Listbox, parameters_displayed=Tab_AnalysisMethods_parameters_displayed)
 
 
 # adding items to listboxes from the backendAPI.
@@ -964,6 +1023,7 @@ for canonicizer in backendAPI.canonicizers:
 for driver in backendAPI.eventDrivers:
     generated_widgets["EventDrivers"]["available_listboxes"][0][2].insert(END, driver)
 for distancefunc in backendAPI.distanceFunctions:
+    assert distancefunc!="NA", 'Distance Function cannot have a name of "NA" (Reserved for Analysis methods that do not use a distance function).\nPlease check the file containing the definition of the distance function class, most likely in or imported to DistanceFunction.py,\nand change the return of displayName().'
     generated_widgets["AnalysisMethods"]["available_listboxes"][1][2].insert(END, distancefunc)
 #for culling in backendAPI.EventCulling:
 #    generated_widgets["EventCulling"]["available_listboxes"][0][2].insert(END, culling)
