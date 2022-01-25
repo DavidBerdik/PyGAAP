@@ -12,6 +12,10 @@ class DistanceFunction(ABC):
 	def displayName():
 		'''Returns the display name for the given distance function.'''
 		pass
+
+	@abstractmethod
+	def displayDescription():
+		pass
 		
 class BhattacharyyaDistance(DistanceFunction):
 	def distance(unknownHistogram, knownHistogram):

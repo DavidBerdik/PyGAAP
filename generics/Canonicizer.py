@@ -11,6 +11,10 @@ class Canonicizer(ABC):
 	def displayName():
 		'''Returns the display name for the given canonicizer.'''
 		pass
+
+	@abstractmethod
+	def displayDescription():
+		'''Returns the display description for the canonicizer.'''
 		
 class NormalizeWhitespace(Canonicizer):
 	def process(self, procText):
@@ -19,3 +23,6 @@ class NormalizeWhitespace(Canonicizer):
 
 	def displayName():
 		return "Normalize Whitespace"
+
+	def displayDescription():
+		return "Converts all whitespace characters (newline, space and tab) to a single space.  Uses Java Character.isWhitespace for classification."
