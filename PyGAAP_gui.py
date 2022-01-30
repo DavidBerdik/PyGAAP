@@ -3,20 +3,21 @@
 # 
 # !! See PyGaap_gui_functions_map.txt for a rough outline of Tkinter widgets and function calls.
 #
-versiondate="2022.01.24"
+versiondate="2022.01.29"
 #Michael Fang, Boston University.
 
 debug=0 # debug level. 0 = no debug info. 3 = all function calls
 
+from copy import deepcopy
+from datetime import datetime
 #REQUIRED MODULES BELOW. USE pip OR pip3 IN YOUR TERMINAL TO INSTALL.
-
-from cProfile import label
-from time import sleep
 from tkinter import *
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename
 
 from backend.API import API
+from backend.CSVIO import readDocument
+from backend.Document import Document
 
 topwindow=Tk() #this is the top-level window when you first open PyGAAP
 topwindow.title("PyGAAP (GUI)")
@@ -26,7 +27,6 @@ except:pass
 topwindow.rowconfigure(0, weight=1)
 topwindow.rowconfigure(1, weight=0, minsize=50)
 topwindow.columnconfigure(0, weight=1)
-
 
 ################### AESTHETICS
 dpi=topwindow.winfo_fpixels('1i')
@@ -52,16 +52,18 @@ if dpi_setting==1:
     dpi_aboutPageGeometry="600x300"
     dpi_authorWindowGeometry="550x340"
     dpi_treeviewEntryHeight=1
+    dpi_processWindowGeometry_finished="700x900"
 
     ttkstyle= ttk.Style()
     ttkstyle.configure('Treeview', rowheight=20)
 
 elif dpi_setting==2:
-    dpi_processWindowGeometry="450x150"
+    dpi_processWindowGeometry="500x200"
     dpi_progressBarLength=400
     dpi_aboutPageGeometry="1200x600"
     dpi_authorWindowGeometry="1170x590"
     dpi_treeviewEntryHeight=2
+    dpi_processWindowGeometry_finished="1300x1100"
 
     ttkstyle= ttk.Style()
     ttkstyle.configure('Treeview', rowheight=35)
@@ -126,6 +128,7 @@ def select_features(ListBoxAv: Listbox, ListBoxOp: list, function: str):
             else:
                 removed=ListBoxOp[0].selection()
             assert len(removed)>0
+            status_update("")
         except:
             if debug>0: print("remove from list: nothing selected or empty list.")
             status_update("Nothing selected.")
@@ -139,8 +142,9 @@ def select_features(ListBoxAv: Listbox, ListBoxOp: list, function: str):
             if type(ListBoxOp[0])==Listbox: selectedfeature=ListBoxAv[0].get(ListBoxAv[0].curselection())
             elif len(ListBoxAv)>1 and ListBoxAv[1]['state']==DISABLED: selectedfeature=selectedfeature=(ListBoxAv[0].get(ListBoxAv[0].curselection()), "NA")
             else: selectedfeature=[ListBoxAv[0].get(ListBoxAv[0].curselection()), ListBoxAv[1].get(ListBoxAv[1].curselection())]
+            status_update("")
         except:
-            status_update("Nothing selected.")
+            status_update("Nothing selected or missing selection.")
             if debug>0: print("add to list: nothing selected")
             return None
         for listboxmember in ListBoxOp:
@@ -152,7 +156,7 @@ def select_features(ListBoxAv: Listbox, ListBoxOp: list, function: str):
         raise ValueError("Bug: All escaped in 'select_features' function.")
     return None
 
-def CheckDistanceFunctionListbox(lbAv, lbOp: Listbox):
+def CheckDistanceFunctionsListbox(lbAv, lbOp: Listbox):
     """Enable or disable the 'Distance Functions' listbox depending on whether the item selected in 'Analysis Methods' allows using DFs."""
     if backendAPI.analysisMethods[lbAv.get(lbAv.curselection())].__dict__.get("_NoDistanceFunction_")==True: lbOp.config(state=DISABLED)
     else: lbOp.config(state=NORMAL)
@@ -273,9 +277,6 @@ def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displa
     param_frame.columnconfigure(1, weight=3)
     return None
 
-def printall(a):
-    print(a)
-
 processWindow=None
 def process(params: dict, check_listboxes: list, check_labels: list, process_button: Button, click: bool=False):
     """
@@ -304,6 +305,9 @@ def process(params: dict, check_listboxes: list, check_labels: list, process_but
 
     status_update("Starting process...")
 
+    unknownAuthors=params["UnknownAuthors"].get(0, END)
+    
+    
     global processWindow
 
     processWindow=Toplevel()
@@ -316,12 +320,102 @@ def process(params: dict, check_listboxes: list, check_labels: list, process_but
     processWindow.grab_set()
     progressBar.start()
 
-    Label(processWindow, text="This doesn't actually\ndo anything at the moment").pack()
+    # LOADING DOCUMENTS
+    process_message=Label(processWindow, text="Loading documents")
+    process_message.pack()
+
+    # gathering the known (corpus) documents
+    docs=[]
+    docs_debug=[]
+    for author in params["KnownAuthors"]:
+        for authorDoc in author[1]:
+            docs.append(Document(author[0], authorDoc.split("/")[-1], readDocument(authorDoc), authorDoc))
+            docs_debug.append([author[0], authorDoc.split("/")[-1]])
+
+    for d in unknownAuthors:
+        docs.append(Document(None, d.split("/")[-1], readDocument(d), d))
+        docs_debug.append([None, d.split("/")[-1]])
+
+    process_message.configure(text="Loading parameters")
+    if debug>=3: print("Loading parameters")
+    
+    # gathering all the selected analysis pipelines
+    canonicizers=list(params["Canonicizers"].get(0, END))
+    eventDrivers=list(params["EventDrivers"].get(0, END))
+    eventCulling=list(params["EventCulling"].get(0, END))
+    am_df=list(params["AnalysisMethods"].get_children())
+    am_df=[params["AnalysisMethods"].item(j)["values"] for j in am_df]
+    #analysisMethods=[j[0] for j in am_df]
+    #DistanceFunctions=[j[1] for j in am_df]
+
+    backendAPI.documents=docs
+    if debug>=2: print(canonicizers, eventDrivers, eventCulling, am_df)
+
+    # THESE ARE MODELED FROM LINES IN CLI.PY
+    # RUN CANONICIZERS
+    process_message.configure(text="Running canonicizers")
+    if debug>=3: print("Running canonicizers")
+    for c in canonicizers:
+        run_canonicizer=backendAPI.canonicizers.get(c)()
+        for doc in backendAPI.documents:
+            doc.text=run_canonicizer.process(doc.text)
+    
+    # RUN EVENT DRIVERS
+    process_message.configure(text="Running event drivers")
+    if debug>=3: print("Running event drivers")
+    for e in eventDrivers:
+        run_eventdriver=backendAPI.eventDrivers.get(e)()
+        for doc in backendAPI.documents:
+            doc.setEventSet(run_eventdriver.createEventSet(doc.text))
+    
+    # RUN EVENT CULLERS
+    process_message.configure(text="Running event cullers")
+    if debug>=3: print("Running event cullers: not implemented yet")
+    #######
+
+    # RUN ANALYSIS ON UNKNOWN DOCS
+    unknownDocs=[d for d in deepcopy(backendAPI.documents) if d.author==None]
+    knownDocs=[d for d in deepcopy(backendAPI.documents) if d.author!=None]
+    
+    results=[]    
+    for am_df_pair in am_df:
+        process_message.configure(text="Running "+str(am_df_pair[0]))
+        run_methods=backendAPI.analysisMethods.get(am_df_pair[0])()
+        run_methods.setDistanceFunction(backendAPI.distanceFunctions.get(am_df_pair[1]))
+        
+        # for each method: first train models on known docs
+        run_methods.train(knownDocs)
+        # then for each unknown document, analyze and output results
+        for d in unknownDocs:
+            doc_result=run_methods.analyze(d)
+            formatted_results=backendAPI.prettyFormatResults(canonicizers, eventDrivers, am_df_pair[0], am_df_pair[1], d, doc_result)
+            results.append(formatted_results)
+
+    process_message.configure(text="Displaying results...")
+    status_update("Experiment complete. See the process window")
+
+    results_text=""
+    for r in results:
+        results_text+=str(r+"\n")
+
+    # create space to display results, release focus of process window.
+    progressBar.destroy()
+    process_message.destroy()
+    results_display=Text(processWindow)
+    results_display.pack(fill=BOTH, expand=True, side=LEFT)
+    results_display.insert(END, results_text)
+    results_display.config(state=DISABLED)
+
+    results_scrollbar=Scrollbar(processWindow, width=scrollbar_width, command=results_display.yview)
+    results_display.config(yscrollcommand=results_scrollbar.set)
+    results_scrollbar.pack(side=LEFT, fill=BOTH)
+    processWindow.geometry(dpi_processWindowGeometry_finished)
+    processWindow.title(str(datetime.now()))
+    processWindow.grab_release()
+
+    change_style(processWindow)
 
     return None
-
-
-
 
 AboutPage=None
 def displayAbout():
@@ -343,7 +437,7 @@ def displayAbout():
     AboutPage_logo=Label(AboutPage, image=AboutPage_logosource)
     AboutPage_logo.pack(side="top", fill="both", expand="yes")
 
-    textinfo="THIS IS AN UNFINISHED VERSION OF PyGAAP GUI.\n\
+    textinfo="THIS IS AN EARLY VERSION OF PyGAAP GUI.\n\
     Version date: "+versiondate+"\n\
     PyGAAP is a Python port of JGAAP,\n\
     Java Graphical Authorship Attribution Program.\n\
@@ -352,7 +446,6 @@ def displayAbout():
     AboutPage_text=Label(AboutPage, text=textinfo)
     AboutPage_text.pack(side='bottom', fill='both', expand='yes')
     AboutPage.mainloop()
-
 
 Notes_content=""
 NotepadWindow=None
@@ -418,7 +511,7 @@ def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
     #liftwindow is the window to go back to focus when the file browser closes
     if debug>=1: print("addFile")
     elif debug>=3: print("addFile(ListboxOp=%s, AllowDuplicates=%s)", ListboxOp, AllowDuplicates)
-    filename=askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")), title=WindowTitle)
+    filename=askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")), title=WindowTitle, multiple=True)
     if liftwindow != None:
         liftwindow.lift(topwindow)
     if AllowDuplicates and filename !="" and len(filename)>0:
@@ -432,13 +525,12 @@ def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
                 liftwindow.lift()
                 return None
         if filename != None and filename !="" and len(filename)>0:
-            ListboxOp.insert(END, filename)
+            for file in filename:
+                ListboxOp.insert(END, file)
 
     if liftwindow != None:
         liftwindow.lift()
     return None
-
-
 
 KnownAuthors=[]
 # KnownAuthors list format: [[author, [file-directory, file-directory]], [author, [file-directory, file directory]]]
@@ -462,7 +554,6 @@ def authorsListUpdater(listbox):
             listbox.itemconfig(END, background="gray90", selectbackground="gray77")
             KnownAuthorsList+=[-1]
     return None
-
 
 def authorSave(window, listbox, author, documentsList, mode):
     """This saves author when adding/editing to the KnownAuthors list. Then uses authorsListUpdater to update the listbox
@@ -507,7 +598,6 @@ def authorSave(window, listbox, author, documentsList, mode):
     return None
 
 AuthorWindow=None
-
 def authorsList(authorList, mode):
     """Add, edit or remove authors
     This updates the global KnownAuthors list.
@@ -574,30 +664,33 @@ def authorsList(authorList, mode):
     AuthorWindow.grab_set()#Disables main window when the add/edit author window appears
     AuthorWindow.title(title)
     AuthorWindow.geometry(dpi_authorWindowGeometry)
+    
+    AuthorWindow.rowconfigure(1, weight=1)
+    AuthorWindow.columnconfigure(1, weight=1)
 
-    AuthorNameLabel=Label(AuthorWindow, text="Author", font="bold", padx=10).grid(row=1, column=1, pady=7, sticky="NW")
-    AuthorFilesLabel=Label(AuthorWindow, text="Files", font="bold", padx=10).grid(row=2, column=1, pady=7, sticky="NW")
+    Label(AuthorWindow, text="Author", font="bold", padx=10).grid(row=0, column=0, pady=7, sticky="NW")
+    Label(AuthorWindow, text="Files", font="bold", padx=10).grid(row=1, column=0, pady=7, sticky="NW")
 
     AuthorNameEntry=Entry(AuthorWindow, width=40)
     if mode=="edit":
         AuthorNameEntry.insert(END, insertAuthor)
-    AuthorNameEntry.grid(row=1, column=2, pady=7, sticky="NW")
+    AuthorNameEntry.grid(row=0, column=1, pady=7, sticky="swen", padx=(0, 10))
 
     AuthorListbox=Listbox(AuthorWindow, height=12, width=60)
     if mode=="edit":
         for j in insertDocs:
             AuthorListbox.insert(END, j)
-    AuthorListbox.grid(row=2, column=2, sticky="NW")
+    AuthorListbox.grid(row=1, column=1, sticky="swen", padx=(0, 10))
 
     AuthorButtonsFrame=Frame(AuthorWindow)
     
     AuthorAddDocButton=Button(AuthorButtonsFrame, text="Add Document",\
         command=lambda:addFile("Add Document For Author", AuthorListbox, False, AuthorWindow))
-    AuthorAddDocButton.grid(row=1, column=1)
+    AuthorAddDocButton.grid(row=0, column=0)
     AuthorRmvDocButton=Button(AuthorButtonsFrame, text="Remove Document",\
         command=lambda:select_features(None, AuthorListbox, 'remove'))
-    AuthorRmvDocButton.grid(row=1, column=2)
-    AuthorButtonsFrame.grid(row=3, column=2, sticky='NW')
+    AuthorRmvDocButton.grid(row=0, column=1)
+    AuthorButtonsFrame.grid(row=2, column=1, sticky='NW')
 
     AuthorBottomButtonsFrame=Frame(AuthorWindow)
     #OK button functions differently depending on "add" or "edit".
@@ -607,34 +700,35 @@ def authorsList(authorList, mode):
     elif mode=="edit":
         AuthorOKButton.configure(command=lambda:authorSave(AuthorWindow, authorList, [insertAuthor, AuthorNameEntry.get()], AuthorListbox.get(0, END), mode))
 
-    AuthorOKButton.grid(row=1, column=1, sticky="W")
+    AuthorOKButton.grid(row=0, column=0, sticky="W")
     AuthorCancelButton=Button(AuthorBottomButtonsFrame, text="Cancel", command=lambda:AuthorWindow.destroy())
-    AuthorCancelButton.grid(row=1, column=2, sticky="W")
-    AuthorBottomButtonsFrame.grid(row=4, column=2, pady=7, sticky="NW")
+    AuthorCancelButton.grid(row=0, column=1, sticky="W")
+    AuthorBottomButtonsFrame.grid(row=3, column=1, pady=7, sticky="NW")
     
+    change_style(AuthorWindow)
+
     AuthorWindow.mainloop()
     return None
 
 #ABOVE ARE UTILITY FUNCTIONS
-
-#Test List for features
-testfeatures=["first", "second", "third", "fourth", 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth']\
-    +list(range(50))
-# test dictionary of feature's parameters. keys are feature index in the list above (test list of features.)
-testfeatures_parameters={"first": ["param 1", "param 2"], "fifth": ["param 1", "param 2", "param 3"], "eleventh": ["param 1", "param 2"]}
-
 menubar=Menu(topwindow)#adds top menu bar
 filemenu=Menu(menubar, tearoff=0)
 
 #tkinter menu building goes from bottom to top / leaves to root
 BatchDocumentsMenu=Menu(filemenu, tearoff=0)#batch documents menu
-BatchDocumentsMenu.add_command(label="Save Documents", command=todofunc)
-BatchDocumentsMenu.add_command(label="Load Documents", command=todofunc)
-filemenu.add_cascade(label="Batch Documents", menu=BatchDocumentsMenu, underline=0)
+BatchDocumentsMenu.add_command(label="Save Documents [under construction]", command=todofunc)
+BatchDocumentsMenu.add_command(label="Load Documents [under construction]", command=todofunc)
+filemenu.add_cascade(label="Batch Documents [under construction]", menu=BatchDocumentsMenu, underline=0)
 
 AAACProblemsMenu=Menu(filemenu, tearoff=0)#problems menu
 AAACProblemsMenu.add_command(label="Problem 1", command=todofunc)
-filemenu.add_cascade(label="AAAC Problems", menu=AAACProblemsMenu, underline=0)
+filemenu.add_cascade(label="AAAC Problems [under construction]", menu=AAACProblemsMenu, underline=0)
+
+filemenu.add_separator()#file menu
+ThemesMenu=Menu(filemenu, tearoff=0)
+ThemesMenu.add_command(label="PyGaap Pink", command=lambda thm="PyGAAP_pink":change_style_live(thm))
+ThemesMenu.add_command(label="JGAAP Blue", command=lambda thm="JGAAP_blue":change_style_live(thm))
+filemenu.add_cascade(label="Themes", menu=ThemesMenu, underline=0)
 
 filemenu.add_separator()#file menu
 filemenu.add_command(label="Exit", command=topwindow.destroy)
@@ -752,16 +846,13 @@ Tab_RP_AnalysisMethods_Listbox_scrollbar.pack(side=RIGHT, fill=BOTH)
 Tab_RP_AnalysisMethods_Listbox.config(yscrollcommand=Tab_RP_AnalysisMethods_Listbox_scrollbar.set)
 Tab_RP_Process_Button=Button(Tabs_Frames["Tab_ReviewProcess"], text="Process", width=25)
 
-Tab_RP_Process_Button.config(\
-    command=lambda lb=[Tab_RP_EventDrivers_Listbox, Tab_RP_AnalysisMethods_Listbox],\
-        labels=[Tab_RP_EventDrivers_Button, Tab_RP_AnalysisMethods_Button],\
-            button=Tab_RP_Process_Button:process("test", lb, labels, button, True))
+# button command see after documents tab.
 
 Tab_RP_Process_Button.grid(row=2, column=0, columnspan=3, sticky="se", pady=5, padx=20)
 
 Tab_RP_Process_Button.bind("<Map>", lambda event, a=[], lb=[Tab_RP_EventDrivers_Listbox, Tab_RP_AnalysisMethods_Listbox],\
     labels=[Tab_RP_EventDrivers_Button, Tab_RP_AnalysisMethods_Button],\
-    button=Tab_RP_Process_Button:process(a, lb, labels, button))
+    button=Tab_RP_Process_Button:process("", lb, labels, button))
 
 
 
@@ -802,9 +893,6 @@ Tab_Documents_UnknownAuthors_Frame.grid(row=5, column=0, sticky="wnse")
 Tab_Documents_UnknownAuthors_listbox=Listbox(Tab_Documents_UnknownAuthors_Frame, width="100", )
 Tab_Documents_UnknownAuthors_listscrollbar=Scrollbar(Tab_Documents_UnknownAuthors_Frame, width=scrollbar_width, )
 #loop below: to be removed
-for values in testfeatures[:5]:
-    Tab_Documents_UnknownAuthors_listbox.insert(END, values)
-
 
 Tab_Documents_UnknownAuthors_listbox.config(yscrollcommand=Tab_Documents_UnknownAuthors_listscrollbar.set)
 Tab_Documents_UnknownAuthors_listscrollbar.config(command=Tab_Documents_UnknownAuthors_listbox.yview)
@@ -856,6 +944,23 @@ Tab_Documents_KnownAuthors_AddAuth_Button.grid(row=1, column=1, sticky="W")
 Tab_Documents_KnownAuthors_EditAuth_Button.grid(row=1, column=2, sticky="W")
 Tab_Documents_KnownAuthors_RmvAuth_Button.grid(row=1, column=3, sticky="W")
 
+
+
+selected_parameters={"KnownAuthors": KnownAuthors,
+                    "UnknownAuthors": Tab_Documents_UnknownAuthors_listbox,
+                    "Canonicizers": Tab_RP_Canonicizers_Listbox,
+                    "EventDrivers": Tab_RP_EventDrivers_Listbox,
+                    "EventCulling": Tab_RP_EventCulling_Listbox,
+                    "AnalysisMethods": Tab_RP_AnalysisMethods_Listbox}
+
+Tab_RP_Process_Button.config(\
+    command=lambda lb=[Tab_RP_EventDrivers_Listbox, Tab_RP_AnalysisMethods_Listbox],\
+        labels=[Tab_RP_EventDrivers_Button, Tab_RP_AnalysisMethods_Button],\
+            button=Tab_RP_Process_Button:process(selected_parameters, lb, labels, button, True))
+
+
+
+
 # This function creates canonicizers, event drivers, event culling, and analysis methods tabs.
 def create_feature_tab(tab_frame: Frame, available_content: list, parameters_content=None, **extra):
     """
@@ -869,8 +974,6 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
     """
     assert len(set(available_content))==len(available_content), "Bug: create_features_tab: available_content can't have repeated names."
     global scrollbar_width
-    global testfeatures
-    global testfeatures_parameters
 
     # Layer 0
     objects=dict() # objects in the frame
@@ -1023,7 +1126,7 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
         for f in objects["selected_listboxes"]:
             f[2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=f[2], d=APIdict[parameters_content]: find_description(t, l, d), add="+")
     else:
-        objects["available_listboxes"][0][2].bind("<<ListboxSelect>>", lambda event, lbAv=objects["available_listboxes"][0][2], lbOp=objects["available_listboxes"][1][2]:CheckDistanceFunctionListbox(lbAv, lbOp), add="+")
+        objects["available_listboxes"][0][2].bind("<<ListboxSelect>>", lambda event, lbAv=objects["available_listboxes"][0][2], lbOp=objects["available_listboxes"][1][2]:CheckDistanceFunctionsListbox(lbAv, lbOp), add="+")
         objects["available_listboxes"][0][2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=objects["available_listboxes"][0][2], d=backendAPI.analysisMethods: find_description(t, l, d), add="+")
         objects["available_listboxes"][1][2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=objects["available_listboxes"][1][2], d=backendAPI.distanceFunctions: find_description(t, l, d), add="+")
 
@@ -1105,8 +1208,12 @@ def change_style(parent_widget):
         elif isinstance(widget, OptionMenu): widget.configure(bg=styles[style_choice]["accent_color_mid"], activebackground=styles[style_choice]["accent_color_light"])
         else: change_style(widget)
 
-
 change_style(topwindow)
+
+def change_style_live(themeString):
+    global style_choice
+    style_choice=themeString
+    change_style(topwindow)
 
 #starts app
 topwindow.mainloop()
