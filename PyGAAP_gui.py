@@ -404,7 +404,7 @@ def process(params: dict, check_listboxes: list, check_labels: list, process_but
     results_display=Text(processWindow)
     results_display.pack(fill=BOTH, expand=True, side=LEFT)
     results_display.insert(END, results_text)
-    results_display.config(state=DISABLED)
+    #results_display.config(state=DISABLED)
 
     results_scrollbar=Scrollbar(processWindow, width=scrollbar_width, command=results_display.yview)
     results_display.config(yscrollcommand=results_scrollbar.set)
