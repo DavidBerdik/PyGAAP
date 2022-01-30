@@ -1,4 +1,5 @@
 from generics.Canonicizer import Canonicizer
+from generics.EventCulling import EventCulling
 from generics.EventDriver import EventDriver
 from generics.AnalysisDriver import AnalysisDriver
 from generics.DistanceFunction import DistanceFunction
@@ -9,6 +10,7 @@ class API:
 	eventDrivers = dict()
 	analysisMethods = dict()
 	distanceFunctions = dict()
+	eventCulling = dict()
 	documents = []
 	
 	def __init__(self, documents):
@@ -20,6 +22,10 @@ class API:
 		# Populate dictionary of event drivers.
 		for cls in EventDriver.__subclasses__():
 			self.eventDrivers[cls.displayName()] = cls
+
+		# Populate dictionary of event culling.
+		for cls in EventCulling.__subclasses__():
+			self.eventCulling[cls.displayName()] = cls
 		
 		# Populate dictionary of analysis methods.
 		for cls in AnalysisDriver.__subclasses__():
@@ -44,6 +50,9 @@ class API:
 		eventDriver.setParams(self._buildParamList(eventDriverString))
 		for doc in self.documents:
 			doc.setEventSet(eventDriver.createEventSet(doc.text))
+	
+	def runEventCulling(self):
+		raise NotImplementedError
 			
 	def runAnalysis(self, analysisMethodString, distanceFunctionString):
 		'''Runs the specified analysis method with the specified distance function and returns the results.'''
@@ -65,13 +74,18 @@ class API:
 		analysis.train(knownDocs)
 		return unknownDoc, analysis.analyze(unknownDoc)
 		
-	def prettyFormatResults(self, canonicizers, eventDriver, analysisMethod, distanceFunc, unknownDoc, results):
+	def prettyFormatResults(self, canonicizers, eventDrivers, analysisMethod, distanceFunc, unknownDoc, results):
 		'''Returns a string of the results in a pretty, formatted structure.'''
 		# Build a string the contains general information about the experiment.
 		formattedResults = str(unknownDoc.title) + ' ' + str(unknownDoc.filepath) + "\nCanonicizers:\n"
 		for canonicizer in canonicizers:
 			formattedResults += '\t' + canonicizer + '\n'
-		formattedResults += "Event Driver:\n\t" + eventDriver + "\nAnalysis Method:\n\t" + analysisMethod + " with " + distanceFunc + '\n'
+		if type(eventDrivers)==list:
+			for eventDriver in eventDrivers:
+				formattedResults += '\t' + eventDriver + '\n'
+		else:
+			formattedResults += "Event Driver:\n\t" + eventDrivers + '\n'
+		formattedResults += "Analysis Method:\n\t" + analysisMethod + " with " + distanceFunc + '\n'
 		
 		# Sort the dictionary in ascending order by distance values and build the results listing.
 		orderedResults = {k: results[k] for k in sorted(results, key=results.get)}
