@@ -107,22 +107,22 @@ def status_update(displayed_text, ifsame=None):
             statusbar_label.config(text=displayed_text)
     return None
 
-def select_features(ListBoxAv: Listbox, ListBoxOp: list, function: str):
-    """Used by Event Drivers, Event culling etc to add/remove/clear selected features.
-    Needs to check if feature is already added."""
+def select_modules(ListBoxAv: Listbox, ListBoxOp: list, function: str):
+    """Used by Event Drivers, Event culling etc to add/remove/clear selected modules.
+    Needs to check if module is already added."""
     #ListBoxAv: "listbox Available", listbox to choose from
     #ListBoxOp: "listbox operate-on", a list of listboxes to modify. Includes the one in the corresponding tab and the
     #   listbox in the Review & Process tab.
-    #feature: is the return of listbox.curselection()
+    #module: is the return of listbox.curselection()
     #function: can be "clear", "remove", or "add"
     if function=="clear":
-        if debug>1: print("select_features: clear")
+        if debug>1: print("select_modules: clear")
         for listboxmember in ListBoxOp:
             if type(listboxmember)==Listbox: listboxmember.delete(0, END)
             else: listboxmember.delete(*listboxmember.get_children())
         return None
     elif function=="remove":
-        if debug>1: print("select_features: remove")
+        if debug>1: print("select_modules: remove")
         try:
             if type(ListBoxOp[0])==Listbox: removed=ListBoxOp[0].curselection()
             else:
@@ -137,11 +137,11 @@ def select_features(ListBoxAv: Listbox, ListBoxOp: list, function: str):
             listboxmember.delete(removed)
         return None
     elif function=="add":
-        if debug>1: print("select_features: add")
+        if debug>1: print("select_modules: add")
         try:
-            if type(ListBoxOp[0])==Listbox: selectedfeature=ListBoxAv[0].get(ListBoxAv[0].curselection())
-            elif len(ListBoxAv)>1 and ListBoxAv[1]['state']==DISABLED: selectedfeature=selectedfeature=(ListBoxAv[0].get(ListBoxAv[0].curselection()), "NA")
-            else: selectedfeature=[ListBoxAv[0].get(ListBoxAv[0].curselection()), ListBoxAv[1].get(ListBoxAv[1].curselection())]
+            if type(ListBoxOp[0])==Listbox: selectedmodule=ListBoxAv[0].get(ListBoxAv[0].curselection())
+            elif len(ListBoxAv)>1 and ListBoxAv[1]['state']==DISABLED: selectedmodule=selectedmodule=(ListBoxAv[0].get(ListBoxAv[0].curselection()), "NA")
+            else: selectedmodule=[ListBoxAv[0].get(ListBoxAv[0].curselection()), ListBoxAv[1].get(ListBoxAv[1].curselection())]
             status_update("")
         except:
             status_update("Nothing selected or missing selection.")
@@ -149,11 +149,11 @@ def select_features(ListBoxAv: Listbox, ListBoxOp: list, function: str):
             return None
         for listboxmember in ListBoxOp:
             if type(ListBoxOp[0])==Listbox:
-                listboxmember.insert(END, selectedfeature)
+                listboxmember.insert(END, selectedmodule)
             else:
-                listboxmember.insert(parent="", index=END, text="", value=selectedfeature)
+                listboxmember.insert(parent="", index=END, text="", value=selectedmodule)
     else:
-        raise ValueError("Bug: All escaped in 'select_features' function.")
+        raise ValueError("Bug: All escaped in 'select_modules' function.")
     return None
 
 def CheckDistanceFunctionsListbox(lbAv, lbOp: Listbox):
@@ -162,7 +162,7 @@ def CheckDistanceFunctionsListbox(lbAv, lbOp: Listbox):
     else: lbOp.config(state=NORMAL)
 
 def find_description(desc: Text, listbox: Listbox or ttk.Treeview, APIdict: dict):
-    """find description of a feature."""
+    """find description of a module."""
     # desc: the tkinter Text object to display the description.
     # listbox: the Listbox or Treeview object to get the selection from
     # APIdict: the API dictionary that contains the listed method classes from the backend.
@@ -172,7 +172,7 @@ def find_description(desc: Text, listbox: Listbox or ttk.Treeview, APIdict: dict
         try:
             name=listbox.get(listbox.curselection())
             description_string=name+":\n"+APIdict[name].displayDescription()
-        except: description_string="No description" # the feature does not have description.
+        except: description_string="No description" # the module does not have description.
     if type(listbox)==ttk.Treeview:
         am_name=listbox.item(listbox.selection())["values"][0]
         df_name=listbox.item(listbox.selection())["values"][1]
@@ -191,34 +191,34 @@ def find_description(desc: Text, listbox: Listbox or ttk.Treeview, APIdict: dict
     return None
 
 
-all_parameters={"EventDrivers":{"features":dict(), "API":backendAPI.eventDrivers},
-                "EventCulling":{"features":dict(), "API":backendAPI.eventCulling},
-                "AnalysisMethods":{"features":dict(), "API":backendAPI.analysisMethods},
-                "DistanceFunctions":{"features":dict(), "API":backendAPI.distanceFunctions}}
-for featureclass in all_parameters:
-    for feature in all_parameters[featureclass]["API"]: # feature: a processer used to process text
-        all_parameters[featureclass]["features"][feature]=[]
-        for var in all_parameters[featureclass]["API"][feature].__dict__: # variable: associated with the feature
+all_parameters={"EventDrivers":{"modules":dict(), "API":backendAPI.eventDrivers},
+                "EventCulling":{"modules":dict(), "API":backendAPI.eventCulling},
+                "AnalysisMethods":{"modules":dict(), "API":backendAPI.analysisMethods},
+                "DistanceFunctions":{"modules":dict(), "API":backendAPI.distanceFunctions}}
+for moduleclass in all_parameters:
+    for module in all_parameters[moduleclass]["API"]: # module: a processer used to process text
+        all_parameters[moduleclass]["modules"][module]=[]
+        for var in all_parameters[moduleclass]["API"][module].__dict__: # variable: associated with the module
             number_of_exposed_variables=0
-            item=all_parameters[featureclass]["API"][feature].__dict__[var] # item: the object instance in the API. The object has the methods actually processing the text.
+            item=all_parameters[moduleclass]["API"][module].__dict__[var] # item: the object instance in the API. The object has the methods actually processing the text.
             if callable(item)==True or var[0]=="_": continue
             number_of_exposed_variables+=1
-            _variable_options = all_parameters[featureclass]["API"][feature]._variable_options
-            _variable_GUItype = all_parameters[featureclass]["API"][feature]._variable_GUItype
+            _variable_options = all_parameters[moduleclass]["API"][module]._variable_options
+            _variable_GUItype = all_parameters[moduleclass]["API"][module]._variable_GUItype
             if _variable_GUItype[var]=="OptionMenu":
                 options=_variable_options[var]
-                all_parameters[featureclass]["features"][feature].append({"options":options, "default":item, "type": "OptionMenu", "label": var})
+                all_parameters[moduleclass]["modules"][module].append({"options":options, "default":item, "type": "OptionMenu", "label": var})
 
 
-def set_parameters(stringvar, API_dict, feature, variable_name):
+def set_parameters(stringvar, API_dict, module, variable_name):
     """sets parameters whenever the widget is touched."""
     value_to=stringvar.get()
-    setattr(API_dict[feature], variable_name, int(value_to))
+    setattr(API_dict[module], variable_name, int(value_to))
     return None
 
 def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displayed_params: list, clear: bool=False, **options):
-    """find parameters and description in some features to display and set"""
-    # feature: individual event drivers, event culling, or analysis methods.
+    """find parameters and description in some modules to display and set"""
+    # module: individual event drivers, event culling, or analysis methods.
     # param_frame: the tkinter frame that displays the parameters.
     # listbox: the tkinter listbox that has the selected parameters.
     # displayed_params: a list of currently displayed parameter options.
@@ -230,15 +230,15 @@ def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displa
             {"options": ["option1", "option2"], "default": 0, "type": "OptionMenu", "label": "first, param 2"}],
             "fifth": [{"options": range(0, 10), "default": 0, "type": "Entry", "label": "fifth, param 1"}]}
         if debug>=1: print("Using place-holder list of parameters.")
-        # structure: dictionary of list [features] of dictionaries [parameters]
+        # structure: dictionary of list [modules] of dictionaries [parameters]
         # the "default" item is always used as a key to "options".
         # i.e. the default value of an entry is always "options"["default"] and never "default".value.
 
-    APIdict=options.get("APIdict") # get dict of features in the selected UI page.
-    list_of_params=all_parameters[APIdict]['features']
-    APIobject=all_parameters[APIdict]['API'] # the API object has the feature class dictionary that gets the actual module.
+    APIdict=options.get("APIdict") # get dict of modules in the selected UI page.
+    list_of_params=all_parameters[APIdict]['modules']
+    APIobject=all_parameters[APIdict]['API'] # the API object has the module class dictionary that gets the actual module.
     if APIdict=="AnalysisMethods":
-        list_of_params_DF=all_parameters["DistanceFunctions"]['features']
+        list_of_params_DF=all_parameters["DistanceFunctions"]['modules']
         APIobject_DF=all_parameters["DistanceFunctions"]['API']
 
     # first get the parameters to display from list.
@@ -266,10 +266,10 @@ def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displa
     if type(listbox)==Listbox: number_of_modules=len(parameters_to_display)
     else: number_of_modules, number_of_am=len(parameters_to_display_DF)+len(parameters_to_display), len(parameters_to_display)
 
-    if number_of_modules==0: # if this feature does not have parameters to be set, say so.
-        displayed_params.append(Label(param_frame, text="No parameters for this feature."))
+    if number_of_modules==0: # if this module does not have parameters to be set, say so.
+        displayed_params.append(Label(param_frame, text="No parameters for this module."))
         displayed_params[-1].pack()
-    else: # if this feature has parameters, find and display parameters.
+    else: # if this module has parameters, find and display parameters.
         rowshift=0 # this is the row shift for widgets. It's one when there are two groups of parameters to display.
         displayed_params.append(Label(param_frame, text=str(module_name)+":", font=("Helvetica", 14)))
         displayed_params[-1].grid(row=0, column=0, columnspan=2, sticky=W)
@@ -302,8 +302,8 @@ def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displa
                     
                 param_options[-1].trace_add(("write"),
                     lambda useless1, useless2, useless3, stringvar=param_options[-1],
-                    API_dict=APIobject, feature=module_name, var=parameter_i['label']:\
-                        set_parameters(stringvar, API_dict, feature, var))
+                    API_dict=APIobject, module=module_name, var=parameter_i['label']:\
+                        set_parameters(stringvar, API_dict, module, var))
         if rowshift==1: #if the rows are shifted, there is an extra label for the DF parameters.
             displayed_params.append(Label(param_frame, text=str(module_name)+":", font=("Helvetica", 14)))
             displayed_params[-1].grid(row=number_of_am+1, column=0, columnspan=2, sticky=W)
@@ -724,7 +724,7 @@ def authorsList(authorList, mode):
         command=lambda:addFile("Add Document For Author", AuthorListbox, False, AuthorWindow))
     AuthorAddDocButton.grid(row=0, column=0)
     AuthorRmvDocButton=Button(AuthorButtonsFrame, text="Remove Document",\
-        command=lambda:select_features(None, AuthorListbox, 'remove'))
+        command=lambda:select_modules(None, AuthorListbox, 'remove'))
     AuthorRmvDocButton.grid(row=0, column=1)
     AuthorButtonsFrame.grid(row=2, column=1, sticky='NW')
 
@@ -942,7 +942,7 @@ Tab_Documents_doc_buttons.grid(row=6, column=0, sticky="W")
 Tab_Documents_UnknownAuthors_AddDoc_Button=Button(Tab_Documents_doc_buttons, text="Add Document", width="16", command=\
     lambda:addFile("Add a document to Unknown Authors", Tab_Documents_UnknownAuthors_listbox, False))
 Tab_Documents_UnknownAuthors_RmvDoc_Button=Button(Tab_Documents_doc_buttons, text="Remove Document", width="16", command=\
-    lambda:select_features(None, [Tab_Documents_UnknownAuthors_listbox], "remove"))
+    lambda:select_modules(None, [Tab_Documents_UnknownAuthors_listbox], "remove"))
 
 Tab_Documents_UnknownAuthors_AddDoc_Button.grid(row=1, column=1, sticky="W")
 Tab_Documents_UnknownAuthors_RmvDoc_Button.grid(row=1, column=2, sticky="W")
@@ -998,17 +998,17 @@ Tab_RP_Process_Button.config(\
 
 
 # This function creates canonicizers, event drivers, event culling, and analysis methods tabs.
-def create_feature_tab(tab_frame: Frame, available_content: list, parameters_content=None, **extra):
+def create_module_tab(tab_frame: Frame, available_content: list, parameters_content=None, **extra):
     """
     creates a tab of available-buttons-selected-description tab.
     tab_frame: the top-level frame in the notebook tab
-    available_content: list of label texts for the available features to go in.
+    available_content: list of label texts for the available modules to go in.
     button_functions: list of buttons in the middle frame
-    selected_content: list of names of listboxes for the selected features to go in.
+    selected_content: list of names of listboxes for the selected modules to go in.
     parameters_content: governs how the parameters frame is displayed
     description_content: governs how the descriptions frame is displayed.
     """
-    assert len(set(available_content))==len(available_content), "Bug: create_features_tab: available_content can't have repeated names."
+    assert len(set(available_content))==len(available_content), "Bug: create_modules_tab: available_content can't have repeated names."
     global scrollbar_width
 
     # Layer 0
@@ -1046,7 +1046,7 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
     # [frame, label, listbox, scrollbar]
     objects["available_frame"].columnconfigure(0, weight=1)
 
-    listboxAvList=[] # list of "available" listboxes to pass into select_features() later.
+    listboxAvList=[] # list of "available" listboxes to pass into select_modules() later.
     for name in available_content:
         # "Available" listboxes
         objects["available_listboxes"].append([Frame(objects["available_frame"])])
@@ -1107,19 +1107,19 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
         counter=1
     
 
-    RP_listbox=extra.get("RP_listbox") # this is the listbox in the "Review and process" page to update when user adds a feature in previous pages.
+    RP_listbox=extra.get("RP_listbox") # this is the listbox in the "Review and process" page to update when user adds a module in previous pages.
 
     
     objects["buttons_add"]=Button(objects["buttons_frame"], width="11", text=">>Add", anchor='s',
-        command=lambda:select_features(listboxAvList, [objects["selected_listboxes"][0][2], RP_listbox], "add"))
+        command=lambda:select_modules(listboxAvList, [objects["selected_listboxes"][0][2], RP_listbox], "add"))
     objects["buttons_add"].pack(anchor=CENTER, fill=X)
 
     objects["buttons_remove"]=Button(objects["buttons_frame"], width="11", text="<<Remove", anchor='s',
-        command=lambda:select_features(None, [objects["selected_listboxes"][0][2], RP_listbox], "remove"))
+        command=lambda:select_modules(None, [objects["selected_listboxes"][0][2], RP_listbox], "remove"))
     objects["buttons_remove"].pack(anchor=CENTER, fill=X)
 
     objects["buttons_clear"]=Button(objects["buttons_frame"], width="11", text="Clear", anchor='s',
-        command=lambda:select_features(None, [objects["selected_listboxes"][0][2], RP_listbox], "clear"))
+        command=lambda:select_modules(None, [objects["selected_listboxes"][0][2], RP_listbox], "clear"))
     objects["buttons_clear"].pack(anchor=CENTER, fill=X)
 
 
@@ -1175,13 +1175,13 @@ def create_feature_tab(tab_frame: Frame, available_content: list, parameters_con
 generated_widgets=dict()
 
 CanonicizerFormat=StringVar()
-generated_widgets['Canonicizers']=create_feature_tab(Tabs_Frames["Tab_Canonicizers"], ["Canonicizers"], "Canonicizers", canonicizers_format=CanonicizerFormat, RP_listbox=Tab_RP_Canonicizers_Listbox)
+generated_widgets['Canonicizers']=create_module_tab(Tabs_Frames["Tab_Canonicizers"], ["Canonicizers"], "Canonicizers", canonicizers_format=CanonicizerFormat, RP_listbox=Tab_RP_Canonicizers_Listbox)
 Tab_EventDrivers_parameters_displayed=[]
-generated_widgets['EventDrivers']=create_feature_tab(Tabs_Frames["Tab_EventDrivers"], ["Event Drivers"], "EventDrivers", displayed_parameters=Tab_EventDrivers_parameters_displayed, RP_listbox=Tab_RP_EventDrivers_Listbox)
+generated_widgets['EventDrivers']=create_module_tab(Tabs_Frames["Tab_EventDrivers"], ["Event Drivers"], "EventDrivers", displayed_parameters=Tab_EventDrivers_parameters_displayed, RP_listbox=Tab_RP_EventDrivers_Listbox)
 Tab_EventCulling_parameters_displayed=[]
-generated_widgets['EventCulling']=create_feature_tab(Tabs_Frames["Tab_EventCulling"], ["Event Culling"], "EventCulling", displayed_parameters=Tab_EventCulling_parameters_displayed, RP_listbox=Tab_RP_EventCulling_Listbox)
+generated_widgets['EventCulling']=create_module_tab(Tabs_Frames["Tab_EventCulling"], ["Event Culling"], "EventCulling", displayed_parameters=Tab_EventCulling_parameters_displayed, RP_listbox=Tab_RP_EventCulling_Listbox)
 Tab_AnalysisMethods_parameters_displayed=[]
-generated_widgets['AnalysisMethods']=create_feature_tab(Tabs_Frames["Tab_AnalysisMethods"], ["Analysis Methods", "Distance Functions"], "AnalysisMethods", RP_listbox=Tab_RP_AnalysisMethods_Listbox, displayed_parameters=Tab_AnalysisMethods_parameters_displayed)
+generated_widgets['AnalysisMethods']=create_module_tab(Tabs_Frames["Tab_AnalysisMethods"], ["Analysis Methods", "Distance Functions"], "AnalysisMethods", RP_listbox=Tab_RP_AnalysisMethods_Listbox, displayed_parameters=Tab_AnalysisMethods_parameters_displayed)
 
 
 # adding items to listboxes from the backendAPI.
@@ -1247,6 +1247,7 @@ def change_style(parent_widget):
         elif isinstance(widget, Listbox): widget.configure(selectbackground=styles[style_choice]["accent_color_mid"])
         elif isinstance(widget, OptionMenu): widget.configure(bg=styles[style_choice]["accent_color_mid"], activebackground=styles[style_choice]["accent_color_light"])
         else: change_style(widget)
+    ttkstyle.map('Treeview', background=[('selected', styles[style_choice]["accent_color_mid"])], foreground=[('selected', "#000000")])
 
 change_style(topwindow)
 
