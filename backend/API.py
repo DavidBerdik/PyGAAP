@@ -1,7 +1,7 @@
 from generics.Canonicizer import Canonicizer
 from generics.EventCulling import EventCulling
 from generics.EventDriver import EventDriver
-from generics.AnalysisDriver import AnalysisDriver
+from generics.AnalysisMethod import AnalysisMethod
 from generics.DistanceFunction import DistanceFunction
 
 class API:
@@ -28,7 +28,7 @@ class API:
 			self.eventCulling[cls.displayName()] = cls
 		
 		# Populate dictionary of analysis methods.
-		for cls in AnalysisDriver.__subclasses__():
+		for cls in AnalysisMethod.__subclasses__():
 			self.analysisMethods[cls.displayName()] = cls
 		
 		# Populate dictionary of distance functions.
@@ -80,7 +80,7 @@ class API:
 		formattedResults = str(unknownDoc.title) + ' ' + str(unknownDoc.filepath) + "\nCanonicizers:\n"
 		for canonicizer in canonicizers:
 			formattedResults += '\t' + canonicizer + '\n'
-		if type(eventDrivers)==list:
+		if type(eventDrivers) == list:
 			for eventDriver in eventDrivers:
 				formattedResults += '\t' + eventDriver + '\n'
 		else:
