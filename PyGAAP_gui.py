@@ -3,21 +3,21 @@
 # 
 # !! See PyGaap_gui_functions_map.txt for a rough outline of Tkinter widgets and function calls.
 #
-versiondate="2022.01.30"
 #Michael Fang, Boston University.
 
-debug=0 # debug level. 0 = no debug info. 3 = all function calls
+GUI_debug=0 # GUI debug level. 0 = no debug info. 3 = all function calls
 
 from copy import deepcopy
 from datetime import datetime
-#REQUIRED MODULES BELOW. USE pip OR pip3 IN YOUR TERMINAL TO INSTALL.
 from tkinter import *
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename
 
+# LOCAL IMPORTS
 from backend.API import API
 from backend.CSVIO import readDocument
 from backend.Document import Document
+import constants
 
 topwindow=Tk() #this is the top-level window when you first open PyGAAP
 topwindow.title("PyGAAP (GUI)")
@@ -32,13 +32,13 @@ topwindow.columnconfigure(0, weight=1)
 dpi=topwindow.winfo_fpixels('1i')
 dpi_setting=None
 if dpi>72:
-    if debug>=2: print("1x UI scale")
+    if GUI_debug>=2: print("1x UI scale")
     dpi_setting=1
     topwindow.geometry("1000x670")
     #topwindow.minsize(height=400, width=600)
     scrollbar_width=16
 else:
-    if debug>=2: print("2x UI scale")
+    if GUI_debug>=2: print("2x UI scale")
     dpi_setting=2
     topwindow.geometry("2000x1150")
     #topwindow.minsize(height=800, width=1100)
@@ -47,38 +47,38 @@ else:
 if dpi_setting==None: raise ValueError("Unknown DPI setting %s."% (str(dpi_setting)))
 
 if dpi_setting==1:
-    dpi_processWindowGeometry="200x100"
-    dpi_progressBarLength=200
-    dpi_aboutPageGeometry="600x300"
-    dpi_authorWindowGeometry="550x340"
-    dpi_treeviewEntryHeight=1
-    dpi_processWindowGeometry_finished="700x900"
+    dpi_process_window_geometry="200x100"
+    dpi_progress_bar_length=200
+    dpi_about_page_geometry="600x300"
+    dpi_author_window_geometry="550x340"
+    dpi_treeview_entry_height=1
+    dpi_process_window_geometry_finished="700x900"
 
-    ttkstyle= ttk.Style()
-    ttkstyle.configure('Treeview', rowheight=20)
+    ttk_style= ttk.Style()
+    ttk_style.configure('Treeview', rowheight=20)
 
 elif dpi_setting==2:
-    dpi_processWindowGeometry="500x200"
-    dpi_progressBarLength=400
-    dpi_aboutPageGeometry="1200x600"
-    dpi_authorWindowGeometry="1170x590"
-    dpi_treeviewEntryHeight=2
-    dpi_processWindowGeometry_finished="1300x1100"
+    dpi_process_window_geometry="500x200"
+    dpi_progress_bar_length=400
+    dpi_about_page_geometry="1200x600"
+    dpi_author_window_geometry="1170x590"
+    dpi_treeview_entry_height=2
+    dpi_process_window_geometry_finished="1300x1100"
 
-    ttkstyle= ttk.Style()
-    ttkstyle.configure('Treeview', rowheight=35)
+    ttk_style= ttk.Style()
+    ttk_style.configure('Treeview', rowheight=35)
     
 style_choice="JGAAP_blue"
 styles=dict()
 styles["JGAAP_blue"]={"accent_color_dark":"#7eedfc", "accent_color_mid":"#c9f6fc", "accent_color_light":"#e0f9fc", "text":"#000000"}
-styles["PyGAAP_pink"]={"accent_color_dark": "#e0b5e5", "accent_color_mid":"#f2e1f4", "accent_color_light":"#f7e5f9", "text":"#000000"}
+styles["PyGAAP_pink"]={"accent_color_dark": "#e0b5e5", "accent_color_mid":"#f2e1f4", "accent_color_light":"#fae9fe", "text":"#000000"}
 
-if debug>=3: print("Accent colors:", styles[style_choice]["accent_color_dark"], styles[style_choice]["accent_color_mid"], styles[style_choice]["accent_color_mid"])
-ttkstyle.map('Treeview', background=[('selected', styles[style_choice]["accent_color_mid"])], foreground=[('selected', "#000000")])
+if GUI_debug>=3: print("Accent colors:", styles[style_choice]["accent_color_dark"], styles[style_choice]["accent_color_mid"], styles[style_choice]["accent_color_mid"])
+ttk_style.map('Treeview', background=[('selected', styles[style_choice]["accent_color_mid"])], foreground=[('selected', "#000000")])
 
 ###############################
 #### BACKEND API ##########################
-backendAPI=API("docs lmao")
+backend_API=API("docs lmao")
 ##########################################
 ###############################
 
@@ -94,7 +94,7 @@ def status_update(displayed_text, ifsame=None):
     updates the text in the status bar.
     ifsame: only update the text if the currently displayed text is the same as this string.
     """
-    if debug>=3: print("status_update(%s, condition=%s)" %(displayed_text, ifsame))
+    if GUI_debug>=3: print("status_update('%s', condition=%s)" %(displayed_text, ifsame))
     global statusbar
     global statusbar_label
     if ifsame==None: # do not check if the status text is the same as "ifsame"
@@ -107,79 +107,80 @@ def status_update(displayed_text, ifsame=None):
             statusbar_label.config(text=displayed_text)
     return None
 
-def select_modules(ListBoxAv: Listbox, ListBoxOp: list, function: str):
+def select_modules(listbox_available: Listbox, Listbox_operate: list, function: str):
     """Used by Event Drivers, Event culling etc to add/remove/clear selected modules.
     Needs to check if module is already added."""
-    #ListBoxAv: "listbox Available", listbox to choose from
-    #ListBoxOp: "listbox operate-on", a list of listboxes to modify. Includes the one in the corresponding tab and the
+    #listbox_available: "listbox Available", listbox to choose from
+    #Listbox_operate: "listbox operate-on", a list of listboxes to modify. Includes the one in the corresponding tab and the
     #   listbox in the Review & Process tab.
     #module: is the return of listbox.curselection()
     #function: can be "clear", "remove", or "add"
     if function=="clear":
-        if debug>1: print("select_modules: clear")
-        for listboxmember in ListBoxOp:
-            if type(listboxmember)==Listbox: listboxmember.delete(0, END)
-            else: listboxmember.delete(*listboxmember.get_children())
+        if GUI_debug>1: print("select_modules: clear")
+        for listbox_member in Listbox_operate:
+            if type(listbox_member)==Listbox: listbox_member.delete(0, END)
+            else: listbox_member.delete(*listbox_member.get_children())
         return None
     elif function=="remove":
-        if debug>1: print("select_modules: remove")
+        if GUI_debug>1: print("select_modules: remove")
         try:
-            if type(ListBoxOp[0])==Listbox: removed=ListBoxOp[0].curselection()
+            if type(Listbox_operate[0])==Listbox: removed=Listbox_operate[0].curselection()
             else:
-                removed=ListBoxOp[0].selection()
+                removed=Listbox_operate[0].selection()
             assert len(removed)>0
             status_update("")
         except:
-            if debug>0: print("remove from list: nothing selected or empty list.")
+            if GUI_debug>0: print("remove from list: nothing selected or empty list.")
             status_update("Nothing selected.")
             return None
-        for listboxmember in ListBoxOp:
-            listboxmember.delete(removed)
+        for listbox_member in Listbox_operate:
+            listbox_member.delete(removed)
         return None
     elif function=="add":
-        if debug>1: print("select_modules: add")
+        if GUI_debug>1: print("select_modules: add")
         try:
-            if type(ListBoxOp[0])==Listbox: selectedmodule=ListBoxAv[0].get(ListBoxAv[0].curselection())
-            elif len(ListBoxAv)>1 and ListBoxAv[1]['state']==DISABLED: selectedmodule=selectedmodule=(ListBoxAv[0].get(ListBoxAv[0].curselection()), "NA")
-            else: selectedmodule=[ListBoxAv[0].get(ListBoxAv[0].curselection()), ListBoxAv[1].get(ListBoxAv[1].curselection())]
+            if type(Listbox_operate[0])==Listbox: selectedmodule=listbox_available[0].get(listbox_available[0].curselection())
+            elif len(listbox_available)>1 and listbox_available[1]['state']==DISABLED: selectedmodule=selectedmodule=(listbox_available[0].get(listbox_available[0].curselection()), "NA")
+            else: selectedmodule=[listbox_available[0].get(listbox_available[0].curselection()), listbox_available[1].get(listbox_available[1].curselection())]
             status_update("")
         except:
             status_update("Nothing selected or missing selection.")
-            if debug>0: print("add to list: nothing selected")
+            if GUI_debug>0: print("add to list: nothing selected")
             return None
-        for listboxmember in ListBoxOp:
-            if type(ListBoxOp[0])==Listbox:
-                listboxmember.insert(END, selectedmodule)
+        for listbox_member in Listbox_operate:
+            if type(Listbox_operate[0])==Listbox:
+                listbox_member.insert(END, selectedmodule)
             else:
-                listboxmember.insert(parent="", index=END, text="", value=selectedmodule)
+                listbox_member.insert(parent="", index=END, text="", value=selectedmodule)
     else:
         raise ValueError("Bug: All escaped in 'select_modules' function.")
     return None
 
-def CheckDistanceFunctionsListbox(lbAv, lbOp: Listbox):
+def check_DF_listbox(lbAv, lbOp: Listbox):
     """Enable or disable the 'Distance Functions' listbox depending on whether the item selected in 'Analysis Methods' allows using DFs."""
-    if backendAPI.analysisMethods[lbAv.get(lbAv.curselection())].__dict__.get("_NoDistanceFunction_")==True: lbOp.config(state=DISABLED)
+    if GUI_debug>=3: print("check_DF_listbox()")
+    if backend_API.analysisMethods[lbAv.get(lbAv.curselection())].__dict__.get("_NoDistanceFunction_")==True: lbOp.config(state=DISABLED)
     else: lbOp.config(state=NORMAL)
 
-def find_description(desc: Text, listbox: Listbox or ttk.Treeview, APIdict: dict):
+def find_description(desc: Text, listbox: Listbox or ttk.Treeview, API_dict: dict):
     """find description of a module."""
     # desc: the tkinter Text object to display the description.
     # listbox: the Listbox or Treeview object to get the selection from
-    # APIdict: the API dictionary that contains the listed method classes from the backend.
-    #   example -- APIdict could be backendAPI.canonicizers.
-    
+    # API_dict: the API dictionary that contains the listed method classes from the backend.
+    #   example -- API_dict could be backend_API.canonicizers.
+    if GUI_debug>=3: print("find_description()")
     if type(listbox)==Listbox:
         try:
             name=listbox.get(listbox.curselection())
-            description_string=name+":\n"+APIdict[name].displayDescription()
+            description_string=name+":\n"+API_dict[name].displayDescription()
         except: description_string="No description" # the module does not have description.
     if type(listbox)==ttk.Treeview:
         am_name=listbox.item(listbox.selection())["values"][0]
         df_name=listbox.item(listbox.selection())["values"][1]
         am_d, df_d="No description", "No description"
-        try: am_d=backendAPI.analysisMethods[am_name].displayDescription()
+        try: am_d=backend_API.analysisMethods[am_name].displayDescription()
         except: pass
-        try: df_d=backendAPI.analysisMethods[df_name].displayDescription()
+        try: df_d=backend_API.analysisMethods[df_name].displayDescription()
         except: pass
         if df_name=="NA": df_d="Not applicable"
         description_string=am_name+":\n"+am_d+"\n\n"+df_name+":\n"+df_d
@@ -191,27 +192,28 @@ def find_description(desc: Text, listbox: Listbox or ttk.Treeview, APIdict: dict
     return None
 
 
-all_parameters={"EventDrivers":{"modules":dict(), "API":backendAPI.eventDrivers},
-                "EventCulling":{"modules":dict(), "API":backendAPI.eventCulling},
-                "AnalysisMethods":{"modules":dict(), "API":backendAPI.analysisMethods},
-                "DistanceFunctions":{"modules":dict(), "API":backendAPI.distanceFunctions}}
-for moduleclass in all_parameters:
-    for module in all_parameters[moduleclass]["API"]: # module: a processer used to process text
-        all_parameters[moduleclass]["modules"][module]=[]
-        for var in all_parameters[moduleclass]["API"][module].__dict__: # variable: associated with the module
+all_parameters={"EventDrivers":{"modules":dict(), "API":backend_API.eventDrivers},
+                "EventCulling":{"modules":dict(), "API":backend_API.eventCulling},
+                "AnalysisMethods":{"modules":dict(), "API":backend_API.analysisMethods},
+                "DistanceFunctions":{"modules":dict(), "API":backend_API.distanceFunctions}}
+for module_class in all_parameters:
+    for module in all_parameters[module_class]["API"]: # module: a processer used to process text
+        all_parameters[module_class]["modules"][module]=[]
+        for var in all_parameters[module_class]["API"][module].__dict__: # variable: associated with the module
             number_of_exposed_variables=0
-            item=all_parameters[moduleclass]["API"][module].__dict__[var] # item: the object instance in the API. The object has the methods actually processing the text.
+            item=all_parameters[module_class]["API"][module].__dict__[var] # item: the object instance in the API. The object has the methods actually processing the text.
             if callable(item)==True or var[0]=="_": continue
             number_of_exposed_variables+=1
-            _variable_options = all_parameters[moduleclass]["API"][module]._variable_options
-            _variable_GUItype = all_parameters[moduleclass]["API"][module]._variable_GUItype
+            _variable_options = all_parameters[module_class]["API"][module]._variable_options
+            _variable_GUItype = all_parameters[module_class]["API"][module]._variable_GUItype
             if _variable_GUItype[var]=="OptionMenu":
                 options=_variable_options[var]
-                all_parameters[moduleclass]["modules"][module].append({"options":options, "default":item, "type": "OptionMenu", "label": var})
+                all_parameters[module_class]["modules"][module].append({"options":options, "default":item, "type": "OptionMenu", "label": var})
 
 
 def set_parameters(stringvar, API_dict, module, variable_name):
     """sets parameters whenever the widget is touched."""
+    if GUI_debug>=3: print("set_parameters(module=%s, variable_name=%s)"%(module, variable_name))
     value_to=stringvar.get()
     setattr(API_dict[module], variable_name, int(value_to))
     return None
@@ -223,21 +225,21 @@ def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displa
     # listbox: the tkinter listbox that has the selected parameters.
     # displayed_params: a list of currently displayed parameter options.
 
-    if debug>=3: print("find_parameters(param_frame=%s, listbox=%s, displayed_params=%s, clear=%s)" %(param_frame, listbox, displayed_params, clear))
+    if GUI_debug>=3: print("find_parameters(clear=%s), displayed_params list length: %s " %(len(displayed_params), clear))
     global all_parameters
     if all_parameters==None or len(all_parameters)==0:
         list_of_params={"first": [{"options": range(1, 20), "default": 1, "type": "Entry", "label": "first, param 1"},
             {"options": ["option1", "option2"], "default": 0, "type": "OptionMenu", "label": "first, param 2"}],
             "fifth": [{"options": range(0, 10), "default": 0, "type": "Entry", "label": "fifth, param 1"}]}
-        if debug>=1: print("Using place-holder list of parameters.")
+        if GUI_debug>=1: print("Using place-holder list of parameters.")
         # structure: dictionary of list [modules] of dictionaries [parameters]
         # the "default" item is always used as a key to "options".
         # i.e. the default value of an entry is always "options"["default"] and never "default".value.
 
-    APIdict=options.get("APIdict") # get dict of modules in the selected UI page.
-    list_of_params=all_parameters[APIdict]['modules']
-    APIobject=all_parameters[APIdict]['API'] # the API object has the module class dictionary that gets the actual module.
-    if APIdict=="AnalysisMethods":
+    API_dict=options.get("API_dict") # get dict of modules in the selected UI page.
+    list_of_params=all_parameters[API_dict]['modules']
+    API_object=all_parameters[API_dict]['API'] # the API object has the module class dictionary that gets the actual module.
+    if API_dict=="AnalysisMethods":
         list_of_params_DF=all_parameters["DistanceFunctions"]['modules']
         APIobject_DF=all_parameters["DistanceFunctions"]['API']
 
@@ -276,19 +278,19 @@ def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displa
         for i in range(number_of_modules):
             if type(listbox)==Listbox:
                 parameter_i=parameters_to_display[i]
-                param_options.append(StringVar(value=str(APIobject[module_name].__dict__[parameter_i['label']])))
+                param_options.append(StringVar(value=str(API_object[module_name].__dict__[parameter_i['label']])))
             elif type(listbox)==ttk.Treeview:
                 if i<number_of_am:
                     parameter_i=parameters_to_display[i]
-                    param_options.append(StringVar(value=str(APIobject[module_name].__dict__[parameter_i['label']])))
+                    param_options.append(StringVar(value=str(API_object[module_name].__dict__[parameter_i['label']])))
                 else:
                     rowshift=1
                     if df_name=="NA": break
                     module_name=df_name
-                    APIobject=APIobject_DF
+                    API_object=APIobject_DF
                     parameters_to_display=parameters_to_display_DF
                     parameter_i=parameters_to_display[i-number_of_am]
-                    param_options.append(StringVar(value=str(APIobject[df_name].__dict__[parameter_i['label']])))
+                    param_options.append(StringVar(value=str(API_object[df_name].__dict__[parameter_i['label']])))
             displayed_params.append(Label(param_frame, text=parameter_i['label']))
             displayed_params[-1].grid(row=i+1+rowshift, column=0)
 
@@ -302,7 +304,7 @@ def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displa
                     
                 param_options[-1].trace_add(("write"),
                     lambda useless1, useless2, useless3, stringvar=param_options[-1],
-                    API_dict=APIobject, module=module_name, var=parameter_i['label']:\
+                    API_dict=API_object, module=module_name, var=parameter_i['label']:\
                         set_parameters(stringvar, API_dict, module, var))
         if rowshift==1: #if the rows are shifted, there is an extra label for the DF parameters.
             displayed_params.append(Label(param_frame, text=str(module_name)+":", font=("Helvetica", 14)))
@@ -321,7 +323,7 @@ def process(params: dict, check_listboxes: list, check_labels: list, process_but
     """
     # check_listboxes: list of listboxes that shouldn't be empty.
     # check_labels: list of labels whose text colors need to be updated upon checking the listboxes.
-    if debug>=3: print("process(params=%s, check_listboxes=%s, check_labels=%s, process_button=%s, click=%s)" %(params, check_listboxes, check_labels, process_button, click))
+    if GUI_debug>=3: print("process(click=%s)\nparams=%s" %(click, params))
     all_set=True
     # first check if the listboxes in check_listboxes are empty. If empty
     process_button.config(state=NORMAL, text="Process", )
@@ -344,36 +346,36 @@ def process(params: dict, check_listboxes: list, check_labels: list, process_but
     unknownAuthors=params["UnknownAuthors"].get(0, END)
     
     
-    global processWindow
+    global process_window
 
-    processWindow=Toplevel()
-    processWindow.title("Process Window")
-    processWindow.geometry(dpi_processWindowGeometry)
-    progressBar=ttk.Progressbar(processWindow, length=dpi_progressBarLength, mode="indeterminate")
+    process_window=Toplevel()
+    process_window.title("Process Window")
+    process_window.geometry(dpi_process_window_geometry)
+    progressbar=ttk.Progressbar(process_window, length=dpi_progress_bar_length, mode="indeterminate")
     
-    progressBar.pack(anchor=CENTER, pady=40)
-    processWindow.bind("<Destroy>", lambda event, b="":status_update(b))
-    processWindow.grab_set()
-    progressBar.start()
+    progressbar.pack(anchor=CENTER, pady=40)
+    process_window.bind("<Destroy>", lambda event, b="":status_update(b))
+    process_window.grab_set()
+    progressbar.start()
 
     # LOADING DOCUMENTS
-    process_message=Label(processWindow, text="Loading documents")
+    process_message=Label(process_window, text="Loading documents")
     process_message.pack()
 
     # gathering the known (corpus) documents
     docs=[]
-    docs_debug=[]
-    for author in params["KnownAuthors"]:
+    docs_GUI_debug=[]
+    for author in params["known_authors"]:
         for authorDoc in author[1]:
             docs.append(Document(author[0], authorDoc.split("/")[-1], readDocument(authorDoc), authorDoc))
-            docs_debug.append([author[0], authorDoc.split("/")[-1]])
+            docs_GUI_debug.append([author[0], authorDoc.split("/")[-1]])
 
     for d in unknownAuthors:
         docs.append(Document(None, d.split("/")[-1], readDocument(d), d))
-        docs_debug.append([None, d.split("/")[-1]])
+        docs_GUI_debug.append([None, d.split("/")[-1]])
 
     process_message.configure(text="Loading parameters")
-    if debug>=3: print("Loading parameters")
+    if GUI_debug>=3: print("Loading parameters")
     
     # gathering all the selected analysis pipelines
     canonicizers=list(params["Canonicizers"].get(0, END))
@@ -384,47 +386,48 @@ def process(params: dict, check_listboxes: list, check_labels: list, process_but
     #analysisMethods=[j[0] for j in am_df]
     #DistanceFunctions=[j[1] for j in am_df]
 
-    backendAPI.documents=docs
-    if debug>=2: print(canonicizers, eventDrivers, eventCulling, am_df)
+    backend_API.documents=docs
+    if GUI_debug>=2: print(canonicizers, eventDrivers, eventCulling, am_df)
 
     # THESE ARE MODELED FROM LINES IN CLI.PY
     # RUN CANONICIZERS
     process_message.configure(text="Running canonicizers")
-    if debug>=3: print("Running canonicizers")
+    if GUI_debug>=3: print("Running canonicizers")
     for c in canonicizers:
-        run_canonicizer=backendAPI.canonicizers.get(c)()
-        for doc in backendAPI.documents:
+        run_canonicizer=backend_API.canonicizers.get(c)()
+        for doc in backend_API.documents:
             doc.text=run_canonicizer.process(doc.text)
     
     # RUN EVENT DRIVERS
     process_message.configure(text="Running event drivers")
-    if debug>=3: print("Running event drivers")
+    if GUI_debug>=3: print("Running event drivers")
     for e in eventDrivers:
-        run_eventdriver=backendAPI.eventDrivers.get(e)()
-        for doc in backendAPI.documents:
+        run_eventdriver=backend_API.eventDrivers.get(e)()
+        for doc in backend_API.documents:
             doc.setEventSet(run_eventdriver.createEventSet(doc.text))
     
     # RUN EVENT CULLERS
     process_message.configure(text="Running event cullers")
-    if debug>=3: print("Running event cullers: not implemented yet")
+    if GUI_debug>=3: print("Running event cullers: not implemented yet")
     #######
 
     # RUN ANALYSIS ON UNKNOWN DOCS
-    unknownDocs=[d for d in deepcopy(backendAPI.documents) if d.author==None]
-    knownDocs=[d for d in deepcopy(backendAPI.documents) if d.author!=None]
+    unknown_docs=[d for d in deepcopy(backend_API.documents) if d.author==None]
+    known_docs=[d for d in deepcopy(backend_API.documents) if d.author!=None]
     
-    results=[]    
+    results=[]
+    if GUI_debug>=3: print("Running analysis methods")
     for am_df_pair in am_df:
         process_message.configure(text="Running "+str(am_df_pair[0]))
-        run_methods=backendAPI.analysisMethods.get(am_df_pair[0])()
-        run_methods.setDistanceFunction(backendAPI.distanceFunctions.get(am_df_pair[1]))
+        run_methods=backend_API.analysisMethods.get(am_df_pair[0])()
+        run_methods.setDistanceFunction(backend_API.distanceFunctions.get(am_df_pair[1]))
         
         # for each method: first train models on known docs
-        run_methods.train(knownDocs)
+        run_methods.train(known_docs)
         # then for each unknown document, analyze and output results
-        for d in unknownDocs:
+        for d in unknown_docs:
             doc_result=run_methods.analyze(d)
-            formatted_results=backendAPI.prettyFormatResults(canonicizers, eventDrivers, am_df_pair[0], am_df_pair[1], d, doc_result)
+            formatted_results=backend_API.prettyFormatResults(canonicizers, eventDrivers, am_df_pair[0], am_df_pair[1], d, doc_result)
             results.append(formatted_results)
 
     process_message.configure(text="Displaying results...")
@@ -435,90 +438,91 @@ def process(params: dict, check_listboxes: list, check_labels: list, process_but
         results_text+=str(r+"\n")
 
     # create space to display results, release focus of process window.
-    progressBar.destroy()
+    progressbar.destroy()
     process_message.destroy()
-    results_display=Text(processWindow)
+    results_display=Text(process_window)
     results_display.pack(fill=BOTH, expand=True, side=LEFT)
     results_display.insert(END, results_text)
     #results_display.config(state=DISABLED)
 
-    results_scrollbar=Scrollbar(processWindow, width=scrollbar_width, command=results_display.yview)
+    results_scrollbar=Scrollbar(process_window, width=scrollbar_width, command=results_display.yview)
     results_display.config(yscrollcommand=results_scrollbar.set)
     results_scrollbar.pack(side=LEFT, fill=BOTH)
-    processWindow.geometry(dpi_processWindowGeometry_finished)
-    processWindow.title(str(datetime.now()))
-    processWindow.grab_release()
+    process_window.geometry(dpi_process_window_geometry_finished)
+    process_window.title(str(datetime.now()))
+    process_window.grab_release()
 
-    change_style(processWindow)
+    change_style(process_window)
 
     return None
 
-AboutPage=None
+About_page=None
 def displayAbout():
     global versiondate
-    global AboutPage
+    global About_page
     """Displays the About Page"""
-    if debug>=3: print("displayAbout()")
+    if GUI_debug>=3: print("displayAbout()")
     try:
-        AboutPage.lift()
+        About_page.lift()
         return None
     except:
         pass
-    AboutPage=Toplevel()
-    AboutPage.title("About PyGAAP")
-    AboutPage.geometry(dpi_aboutPageGeometry)
-    AboutPage.resizable(False, False)
-    AboutPage_logosource=PhotoImage(file="./logo.png")
-    AboutPage_logosource=AboutPage_logosource.subsample(2, 2)
-    AboutPage_logo=Label(AboutPage, image=AboutPage_logosource)
+    About_page=Toplevel()
+    About_page.title("About PyGAAP")
+    About_page.geometry(dpi_about_page_geometry)
+    About_page.resizable(False, False)
+    about_page_logosource=PhotoImage(file="./logo.png")
+    about_page_logosource=about_page_logosource.subsample(2, 2)
+    AboutPage_logo=Label(About_page, image=about_page_logosource)
     AboutPage_logo.pack(side="top", fill="both", expand="yes")
 
     textinfo="THIS IS AN EARLY VERSION OF PyGAAP GUI.\n\
-    Version date: "+versiondate+"\n\
+    Version date: "+constants.versiondate+"\n\
     PyGAAP is a Python port of JGAAP,\n\
     Java Graphical Authorship Attribution Program.\n\
     This is an open-source tool developed by the EVL Lab\n\
     (Evaluating Variation in Language Laboratory)."
-    AboutPage_text=Label(AboutPage, text=textinfo)
+    AboutPage_text=Label(About_page, text=textinfo)
     AboutPage_text.pack(side='bottom', fill='both', expand='yes')
-    AboutPage.mainloop()
+    About_page.mainloop()
 
-Notes_content=""
-NotepadWindow=None
+notes_content=""
+notepad_window=None
 
 def notepad():
     """Notes button window"""
-    global Notes_content
-    global NotepadWindow
+    global notes_content
+    global notepad_window
     # prevents spam-spawning. took me way too long to figure this out
-    if debug>=3: print("notepad()")
+    if GUI_debug>=3: print("notepad()")
     try:
-        NotepadWindow.lift()
+        notepad_window.lift()
     except:
-        NotepadWindow=Toplevel()
-        NotepadWindow.title("Notes")
-        #NotepadWindow.geometry("600x500")
-        NotepadWindow_Textfield=Text(NotepadWindow)
-        NotepadWindow_Textfield.insert("1.0", str(Notes_content))
-        NotepadWindow_SaveButton=Button(NotepadWindow, text="Save & Close",\
-            command=lambda:Notepad_Save(NotepadWindow_Textfield.get("1.0", "end-1c"), NotepadWindow))
-        NotepadWindow_Textfield.pack(padx=7, pady=7, expand=True)
-        NotepadWindow_SaveButton.pack(pady=(0, 12), expand=True)
-        NotepadWindow.mainloop()
+        notepad_window=Toplevel()
+        notepad_window.title("Notes")
+        #notepad_window.geometry("600x500")
+        notepad_window_textfield=Text(notepad_window)
+        notepad_window_textfield.insert("1.0", str(notes_content))
+        notepad_window_save_button=Button(notepad_window, text="Save & Close",\
+            command=lambda:Notepad_Save(notepad_window_textfield.get("1.0", "end-1c"), notepad_window))
+        notepad_window_textfield.pack(padx=7, pady=7, expand=True)
+        notepad_window_save_button.pack(pady=(0, 12), expand=True)
+        change_style(notepad_window)
+        notepad_window.mainloop()
     return None
 
 def Notepad_Save(text, window):
     """saves the contents displayed in the notepad textfield when the button is pressed"""
-    global Notes_content
-    Notes_content=text
+    global notes_content
+    notes_content=text
     window.destroy()
-    if debug>=3: print("Notepad_Save()")
+    if GUI_debug>=3: print("Notepad_Save()")
     return None
 
 def switch_tabs(notebook, mode, tabID=0):
     """called by the next button and the tab lables themselves.
     if called by next button, returns the next tab. if called by tab label click, gets that tab"""
-    if debug>=3: print("switch_tabs(mode=%s, tabID=%i)" %(mode, tabID))
+    if GUI_debug>=3: print("switch_tabs(mode=%s, tabID=%i)" %(mode, tabID))
     if mode=="next":
         try:
             notebook.select(notebook.index(notebook.select())+1)
@@ -538,113 +542,113 @@ def switch_tabs(notebook, mode, tabID=0):
         except:
             return None
 
-def addFile(WindowTitle, ListboxOp, AllowDuplicates, liftwindow=None):
+def addFile(window_title, listbox_operate, allow_duplicates, lift_window=None):
     """Universal add file function to bring up the explorer window"""
-    #WindowTitle is the title of the window, may change depending on what kind of files are added
-    #ListboxOp is the listbox object to operate on
-    #AllowDuplicates is whether the listbox allows duplicates.
+    #window_title is the title of the window, may change depending on what kind of files are added
+    #listbox_operate is the listbox object to operate on
+    #allow_duplicates is whether the listbox allows duplicates.
     #if listbox does not allow duplicates, item won't be added to the listbox and this prints a message to the terminal.
-    #liftwindow is the window to go back to focus when the file browser closes
-    if debug>=1: print("addFile")
-    elif debug>=3: print("addFile(ListboxOp=%s, AllowDuplicates=%s)", ListboxOp, AllowDuplicates)
-    filename=askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")), title=WindowTitle, multiple=True)
-    if liftwindow != None:
-        liftwindow.lift(topwindow)
-    if AllowDuplicates and filename !="" and len(filename)>0:
-        ListboxOp.insert(END, filename)
+    #lift_window is the window to go back to focus when the file browser closes
+    if GUI_debug>=1: print("addFile")
+    elif GUI_debug>=3: print("addFile(allow_duplicates=%s)", allow_duplicates)
+    filename=askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")), title=window_title, multiple=True)
+    if lift_window != None:
+        lift_window.lift(topwindow)
+    if allow_duplicates and filename !="" and len(filename)>0:
+        listbox_operate.insert(END, filename)
     else:
-        for fileinlist in ListboxOp.get(0, END):
+        for fileinlist in listbox_operate.get(0, END):
             if fileinlist==filename:
                 status_update("File already in list.")
-                if debug>0:
+                if GUI_debug>0:
                     print("Add document: file already in list")
-                liftwindow.lift()
+                lift_window.lift()
                 return None
         if filename != None and filename !="" and len(filename)>0:
             for file in filename:
-                ListboxOp.insert(END, file)
+                listbox_operate.insert(END, file)
 
-    if liftwindow != None:
-        liftwindow.lift()
+    if lift_window != None:
+        lift_window.lift()
     return None
 
-KnownAuthors=[]
-# KnownAuthors list format: [[author, [file-directory, file-directory]], [author, [file-directory, file directory]]]
-KnownAuthorsList=[]
+known_authors=[]
+# known_authors list format: [[author, [file-directory, file-directory]], [author, [file-directory, file directory]]]
+known_authors_list=[]
 # this decides which in the 1-dimensionl listbox is the author and therefore can be deleted when using delete author
 # format: [0, -1, -1. -1, 1, -1, ..., 2, -1, ..., 3, -1, ...] -1=not author; >=0: author index.
 
-def authorsListUpdater(listbox):
-    """This updates the ListBox from the KnownAuthors python-list"""
-    global KnownAuthors
-    global KnownAuthorsList
+def authors_list_updater(listbox):
+    """This updates the ListBox from the known_authors python-list"""
+    global known_authors
+    global known_authors_list
     listbox.delete(0, END)
-    if debug>=3: print("authorsListUpdater()")
-    KnownAuthorsList=[]
-    for authorlistindex in range(len(KnownAuthors)):#Authors
-        listbox.insert(END, KnownAuthors[authorlistindex][0])
-        listbox.itemconfig(END, background="light cyan", selectbackground="sky blue")
-        KnownAuthorsList+=[authorlistindex]
-        for document in KnownAuthors[authorlistindex][1]:
+    if GUI_debug>=3: print("authors_list_updater()")
+    known_authors_list=[]
+    for author_list_index in range(len(known_authors)):#Authors
+        listbox.insert(END, known_authors[author_list_index][0])
+        listbox.itemconfig(END, background=styles[style_choice]["accent_color_light"], selectbackground=styles[style_choice]["accent_color_mid"])
+        known_authors_list+=[author_list_index]
+        for document in known_authors[author_list_index][1]:
             listbox.insert(END, document)#Author's documents
             listbox.itemconfig(END, background="gray90", selectbackground="gray77")
-            KnownAuthorsList+=[-1]
+            known_authors_list+=[-1]
     return None
 
-def authorSave(window, listbox, author, documentsList, mode):
-    """This saves author when adding/editing to the KnownAuthors list. Then uses authorsListUpdater to update the listbox
+def author_save(window, listbox, author, documents_list, mode):
+    """This saves author when adding/editing to the known_authors list. Then uses authors_list_updater to update the listbox
     """
     #Listbox: the authors listbox.
     #author: 
     #       "ADD MODE": the author's name entered in authorsList window
     #       "EDIT MODE": [original author name, changed author name]
-    #documentsList: list of documents entered in the listbox in the authorsList window
+    #documents_list: list of documents entered in the listbox in the authorsList window
     #mode: add or edit
-    global KnownAuthors
-    if debug>=3: print("authorSave(mode=%s)" %(mode))
+    global known_authors
+    if GUI_debug>=3: print("author_save(mode=%s)" %(mode))
     if mode=="add":
-        if (author != None and author.strip() !="") and (documentsList !=None and len(documentsList)!=0):  
-            AuthorIndex=0
-            while AuthorIndex<len(KnownAuthors):#check if author already exists
-                if KnownAuthors[AuthorIndex][0]==author:#when author is already in the list, merge.
-                    KnownAuthors[AuthorIndex][1]=KnownAuthors[AuthorIndex][1]+list([doc for doc in documentsList if doc not in KnownAuthors[AuthorIndex][1]])
-                    authorsListUpdater(listbox)
+        if (author != None and author.strip() !="") and (documents_list !=None and len(documents_list)!=0):  
+            author_index=0
+            while author_index<len(known_authors):#check if author already exists
+                if known_authors[author_index][0]==author:#when author is already in the list, merge.
+                    known_authors[author_index][1]=known_authors[author_index][1]+list([doc for doc in documents_list if doc not in known_authors[author_index][1]])
+                    authors_list_updater(listbox)
                     window.destroy()
                     return None
-                AuthorIndex+=1
-            KnownAuthors+=[[author, list([file for file in documentsList if type(file)==str])]]#no existing author found, add.
-            authorsListUpdater(listbox)
+                author_index+=1
+            known_authors+=[[author, list([file for file in documents_list if type(file)==str])]]#no existing author found, add.
+            authors_list_updater(listbox)
         window.destroy()
         return None
     elif mode=='edit':
-        if (author[1] != None and author[1].strip() !="") and (documentsList !=None and len(documentsList)!=0):
-            AuthorIndex=0
-            while AuthorIndex<len(KnownAuthors):
-                if KnownAuthors[AuthorIndex][0]==author[0]:
-                    KnownAuthors[AuthorIndex]=[author[1], documentsList]
-                    authorsListUpdater(listbox)
+        if (author[1] != None and author[1].strip() !="") and (documents_list !=None and len(documents_list)!=0):
+            author_index=0
+            while author_index<len(known_authors):
+                if known_authors[author_index][0]==author[0]:
+                    known_authors[author_index]=[author[1], documents_list]
+                    authors_list_updater(listbox)
                     window.destroy()
                     return None
-                AuthorIndex+=1
+                author_index+=1
             print("coding error: editing author: list of authors and documents changed unexpectedly when saving")
             return None
     else:
-        print("coding error: unknown parameter passed to 'authorSave' function: ", str(mode))
+        print("coding error: unknown parameter passed to 'author_save' function: ", str(mode))
     window.destroy()
     return None
 
-AuthorWindow=None
+author_window=None
 def authorsList(authorList, mode):
     """Add, edit or remove authors
-    This updates the global KnownAuthors list.
+    This updates the global known_authors list.
     This opens a window to add/edit authors; does not open a window to remove authors
     """
     #authorList: the listbox that displays known authors in the topwindow.
-    #authorList calls authorSave (which calls authorListUpdater) when adding/editing author
+    #authorList calls author_save (which calls authorListUpdater) when adding/editing author
     #
-    global KnownAuthors
-    global KnownAuthorsList
-    if debug>=3: print("authorsList(mode=%s)"%(mode))
+    global known_authors
+    global known_authors_list
+    if GUI_debug>=3: print("authorsList(mode=%s)"%(mode))
     if mode=="add":
         title="Add Author"
     elif mode=='edit':
@@ -652,38 +656,38 @@ def authorsList(authorList, mode):
             authorList.get(authorList.curselection())
             title="Edit Author"
             selected=int(authorList.curselection()[0])
-            if KnownAuthorsList[selected]==-1:
+            if known_authors_list[selected]==-1:
                 status_update("Select the author instead of the document.")
                 print("edit author: select the author instead of the document")
                 return None
             else:
-                AuthorIndex=KnownAuthorsList[selected]#gets the index in the 2D list
-                insertAuthor=KnownAuthors[selected][0]#original author name
-                insertDocs=KnownAuthors[selected][1]#original list of documents
+                author_index=known_authors_list[selected]#gets the index in the 2D list
+                insert_author=known_authors[selected][0]#original author name
+                insert_docs=known_authors[selected][1]#original list of documents
         except:
             status_update("No author selected.")
-            if debug>0:
+            if GUI_debug>0:
                 print("edit author: no author selected")
             return None
 
     elif mode=="remove":#remove author does not open a window
         try:
             selected=int(authorList.curselection()[0])#this gets the listbox selection index
-            if KnownAuthorsList[selected]==-1:
+            if known_authors_list[selected]==-1:
                 status_update("Select the author instead of the document.")
                 print("remove author: select the author instead of the document")
                 return None
             else:
-                AuthorIndex=KnownAuthorsList[selected]#This gets the index in KnownAuthors nested list
-                if AuthorIndex>=len(KnownAuthors)-1:
-                    KnownAuthors=KnownAuthors[:AuthorIndex]
+                author_index=known_authors_list[selected]#This gets the index in known_authors nested list
+                if author_index>=len(known_authors)-1:
+                    known_authors=known_authors[:author_index]
                 else:
-                    KnownAuthors=KnownAuthors[:AuthorIndex]+KnownAuthors[AuthorIndex+1:]
-                authorsListUpdater(authorList)
+                    known_authors=known_authors[:author_index]+known_authors[author_index+1:]
+                authors_list_updater(authorList)
 
         except:
             status_update("No author selected.")
-            if debug>0:
+            if GUI_debug>0:
                 print("remove author: nothing selected")
             return None
         return None
@@ -692,88 +696,88 @@ def authorsList(authorList, mode):
         
         return None
 
-    global AuthorWindow
+    global author_window
     try:
-        AuthorWindow.lift()
+        author_window.lift()
         return None
     except: pass
     
-    AuthorWindow=Toplevel()
-    AuthorWindow.grab_set()#Disables main window when the add/edit author window appears
-    AuthorWindow.title(title)
-    AuthorWindow.geometry(dpi_authorWindowGeometry)
+    author_window=Toplevel()
+    author_window.grab_set()#Disables main window when the add/edit author window appears
+    author_window.title(title)
+    author_window.geometry(dpi_author_window_geometry)
     
-    AuthorWindow.rowconfigure(1, weight=1)
-    AuthorWindow.columnconfigure(1, weight=1)
+    author_window.rowconfigure(1, weight=1)
+    author_window.columnconfigure(1, weight=1)
 
-    Label(AuthorWindow, text="Author", font="bold", padx=10).grid(row=0, column=0, pady=7, sticky="NW")
-    Label(AuthorWindow, text="Files", font="bold", padx=10).grid(row=1, column=0, pady=7, sticky="NW")
+    Label(author_window, text="Author", font="bold", padx=10).grid(row=0, column=0, pady=7, sticky="NW")
+    Label(author_window, text="Files", font="bold", padx=10).grid(row=1, column=0, pady=7, sticky="NW")
 
-    AuthorNameEntry=Entry(AuthorWindow, width=40)
+    author_name_entry=Entry(author_window, width=40)
     if mode=="edit":
-        AuthorNameEntry.insert(END, insertAuthor)
-    AuthorNameEntry.grid(row=0, column=1, pady=7, sticky="swen", padx=(0, 10))
+        author_name_entry.insert(END, insert_author)
+    author_name_entry.grid(row=0, column=1, pady=7, sticky="swen", padx=(0, 10))
 
-    AuthorListbox=Listbox(AuthorWindow, height=12, width=60)
+    author_listbox=Listbox(author_window, height=12, width=60)
     if mode=="edit":
-        for j in insertDocs:
-            AuthorListbox.insert(END, j)
-    AuthorListbox.grid(row=1, column=1, sticky="swen", padx=(0, 10))
+        for j in insert_docs:
+            author_listbox.insert(END, j)
+    author_listbox.grid(row=1, column=1, sticky="swen", padx=(0, 10))
 
-    AuthorButtonsFrame=Frame(AuthorWindow)
+    author_buttons_frame=Frame(author_window)
     
-    AuthorAddDocButton=Button(AuthorButtonsFrame, text="Add Document",\
-        command=lambda:addFile("Add Document For Author", AuthorListbox, False, AuthorWindow))
-    AuthorAddDocButton.grid(row=0, column=0)
-    AuthorRmvDocButton=Button(AuthorButtonsFrame, text="Remove Document",\
-        command=lambda:select_modules(None, [AuthorListbox], 'remove'))
-    AuthorRmvDocButton.grid(row=0, column=1)
-    AuthorButtonsFrame.grid(row=2, column=1, sticky='NW')
+    author_add_doc_button=Button(author_buttons_frame, text="Add Document",\
+        command=lambda:addFile("Add Document For Author", author_listbox, False, author_window))
+    author_add_doc_button.grid(row=0, column=0)
+    author_remove_doc_button=Button(author_buttons_frame, text="Remove Document",\
+        command=lambda:select_modules(None, [author_listbox], 'remove'))
+    author_remove_doc_button.grid(row=0, column=1)
+    author_buttons_frame.grid(row=2, column=1, sticky='NW')
 
-    AuthorBottomButtonsFrame=Frame(AuthorWindow)
+    author_bottom_buttons_frame=Frame(author_window)
     #OK button functions differently depending on "add" or "edit".
-    AuthorOKButton=Button(AuthorBottomButtonsFrame, text="OK",)
+    author_ok_button=Button(author_bottom_buttons_frame, text="OK",)
     if mode=="add":
-        AuthorOKButton.configure(command=lambda:authorSave(AuthorWindow, authorList, AuthorNameEntry.get(), AuthorListbox.get(0, END), mode))
+        author_ok_button.configure(command=lambda:author_save(author_window, authorList, author_name_entry.get(), author_listbox.get(0, END), mode))
     elif mode=="edit":
-        AuthorOKButton.configure(command=lambda:authorSave(AuthorWindow, authorList, [insertAuthor, AuthorNameEntry.get()], AuthorListbox.get(0, END), mode))
+        author_ok_button.configure(command=lambda:author_save(author_window, authorList, [insert_author, author_name_entry.get()], author_listbox.get(0, END), mode))
 
-    AuthorOKButton.grid(row=0, column=0, sticky="W")
-    AuthorCancelButton=Button(AuthorBottomButtonsFrame, text="Cancel", command=lambda:AuthorWindow.destroy())
-    AuthorCancelButton.grid(row=0, column=1, sticky="W")
-    AuthorBottomButtonsFrame.grid(row=3, column=1, pady=7, sticky="NW")    
-    change_style(AuthorWindow)
+    author_ok_button.grid(row=0, column=0, sticky="W")
+    author_cancel_button=Button(author_bottom_buttons_frame, text="Cancel", command=lambda:author_window.destroy())
+    author_cancel_button.grid(row=0, column=1, sticky="W")
+    author_bottom_buttons_frame.grid(row=3, column=1, pady=7, sticky="NW")    
+    change_style(author_window)
 
-    AuthorWindow.mainloop()
+    author_window.mainloop()
     return None
 
 #ABOVE ARE UTILITY FUNCTIONS
 menubar=Menu(topwindow)#adds top menu bar
-filemenu=Menu(menubar, tearoff=0)
+menu_file=Menu(menubar, tearoff=0)
 
 #tkinter menu building goes from bottom to top / leaves to root
-BatchDocumentsMenu=Menu(filemenu, tearoff=0)#batch documents menu
-BatchDocumentsMenu.add_command(label="Save Documents [under construction]", command=todofunc)
-BatchDocumentsMenu.add_command(label="Load Documents [under construction]", command=todofunc)
-filemenu.add_cascade(label="Batch Documents [under construction]", menu=BatchDocumentsMenu, underline=0)
+menu_batch_documents=Menu(menu_file, tearoff=0)#batch documents menu
+menu_batch_documents.add_command(label="Save Documents [under construction]", command=todofunc)
+menu_batch_documents.add_command(label="Load Documents [under construction]", command=todofunc)
+menu_file.add_cascade(label="Batch Documents [under construction]", menu=menu_batch_documents, underline=0)
 
-AAACProblemsMenu=Menu(filemenu, tearoff=0)#problems menu
-AAACProblemsMenu.add_command(label="Problem 1", command=todofunc)
-filemenu.add_cascade(label="AAAC Problems [under construction]", menu=AAACProblemsMenu, underline=0)
+menu_AAAC_problems=Menu(menu_file, tearoff=0)#problems menu
+menu_AAAC_problems.add_command(label="Problem 1", command=todofunc)
+menu_file.add_cascade(label="AAAC Problems [under construction]", menu=menu_AAAC_problems, underline=0)
 
-filemenu.add_separator()#file menu
-ThemesMenu=Menu(filemenu, tearoff=0)
-ThemesMenu.add_command(label="PyGaap Pink", command=lambda thm="PyGAAP_pink":change_style_live(thm))
-ThemesMenu.add_command(label="JGAAP Blue", command=lambda thm="JGAAP_blue":change_style_live(thm))
-filemenu.add_cascade(label="Themes", menu=ThemesMenu, underline=0)
+menu_file.add_separator()#file menu
+menu_themes=Menu(menu_file, tearoff=0)
+menu_themes.add_command(label="PyGaap Pink", command=lambda thm="PyGAAP_pink":change_style_live(thm))
+menu_themes.add_command(label="JGAAP Blue", command=lambda thm="JGAAP_blue":change_style_live(thm))
+menu_file.add_cascade(label="Themes", menu=menu_themes, underline=0)
 
-filemenu.add_separator()#file menu
-filemenu.add_command(label="Exit", command=topwindow.destroy)
-menubar.add_cascade(label="File", menu=filemenu)
+menu_file.add_separator()#file menu
+menu_file.add_command(label="Exit", command=topwindow.destroy)
+menubar.add_cascade(label="File", menu=menu_file)
 
-helpmenu=Menu(menubar, tearoff=0)#help menu
-helpmenu.add_command(label="About...", command=displayAbout)
-menubar.add_cascade(label="Help", menu=helpmenu)
+menu_help=Menu(menubar, tearoff=0)#help menu
+menu_help.add_command(label="About...", command=displayAbout)
+menubar.add_cascade(label="Help", menu=menu_help)
 
 topwindow.config(menu=menubar)
 #bottom of the main window is at the bottom of this file
@@ -958,7 +962,7 @@ Tab_Documents_KnownAuthors_Frame.grid(row=8, column=0, sticky="wnse")
 
 
 Tab_Documents_KnownAuthors_listbox=Listbox(Tab_Documents_KnownAuthors_Frame, width="100")
-Tab_Documents_KnownAuthors_listscroller=Scrollbar(Tab_Documents_KnownAuthors_Frame, width=scrollbar_width, )
+Tab_Documents_KnownAuthors_listscroller=Scrollbar(Tab_Documents_KnownAuthors_Frame, width=scrollbar_width)
 
 Tab_Documents_KnownAuthors_listbox.config(yscrollcommand=Tab_Documents_KnownAuthors_listscroller.set)
 Tab_Documents_KnownAuthors_listscroller.config(command=Tab_Documents_KnownAuthors_listbox.yview)
@@ -983,7 +987,7 @@ Tab_Documents_KnownAuthors_RmvAuth_Button.grid(row=1, column=3, sticky="W")
 
 
 
-selected_parameters={"KnownAuthors": KnownAuthors,
+selected_parameters={"known_authors": known_authors,
                     "UnknownAuthors": Tab_Documents_UnknownAuthors_listbox,
                     "Canonicizers": Tab_RP_Canonicizers_Listbox,
                     "EventDrivers": Tab_RP_EventDrivers_Listbox,
@@ -1142,9 +1146,9 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
 
 
         objects["selected_listboxes"][-1][2].bind("<<ListboxSelect>>",\
-            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp, APIdict=parameters_content), add="+")
+            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp, API_dict=parameters_content), add="+")
         objects["selected_listboxes"][-1][2].bind("<<Unmap>>",\
-            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp, APIdict=parameters_content), add="+")
+            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp, API_dict=parameters_content), add="+")
             
     elif parameters_content=="AnalysisMethods":
         displayed_parameters=extra.get("displayed_parameters")
@@ -1154,22 +1158,22 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
         objects['displayed_parameters_frame']=Frame(objects["parameters_frame"])
         objects['displayed_parameters_frame'].pack(padx=20, pady=20)
         # bind treeview widget so the description updates when an item is selected.
-        objects["selected_listboxes"][0][2].bind("<<TreeviewSelect>>", lambda event, d=objects["description_box"], lb=objects["selected_listboxes"][0][2], di=backendAPI.analysisMethods:find_description(d, lb, di), add="+")
+        objects["selected_listboxes"][0][2].bind("<<TreeviewSelect>>", lambda event, d=objects["description_box"], lb=objects["selected_listboxes"][0][2], di=backend_API.analysisMethods:find_description(d, lb, di), add="+")
         
         objects["selected_listboxes"][-1][2].bind("<<TreeviewSelect>>",\
-            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp, APIdict=parameters_content), add="+")
+            lambda event, frame=objects['displayed_parameters_frame'], lb=objects["selected_listboxes"][-1][2], dp=displayed_parameters:find_parameters(frame, lb, dp, API_dict=parameters_content), add="+")
 
 
     if parameters_content!="AnalysisMethods":
-        APIdict={"Canonicizers": backendAPI.canonicizers, "EventDrivers": backendAPI.eventDrivers, "EventCulling": backendAPI.eventCulling}
+        API_dict={"Canonicizers": backend_API.canonicizers, "EventDrivers": backend_API.eventDrivers, "EventCulling": backend_API.eventCulling}
         for f in objects["available_listboxes"]:
-            f[2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=f[2], d=APIdict[parameters_content]: find_description(t, l, d), add="+")
+            f[2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=f[2], d=API_dict[parameters_content]: find_description(t, l, d), add="+")
         for f in objects["selected_listboxes"]:
-            f[2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=f[2], d=APIdict[parameters_content]: find_description(t, l, d), add="+")
+            f[2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=f[2], d=API_dict[parameters_content]: find_description(t, l, d), add="+")
     else:
-        objects["available_listboxes"][0][2].bind("<<ListboxSelect>>", lambda event, lbAv=objects["available_listboxes"][0][2], lbOp=objects["available_listboxes"][1][2]:CheckDistanceFunctionsListbox(lbAv, lbOp), add="+")
-        objects["available_listboxes"][0][2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=objects["available_listboxes"][0][2], d=backendAPI.analysisMethods: find_description(t, l, d), add="+")
-        objects["available_listboxes"][1][2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=objects["available_listboxes"][1][2], d=backendAPI.distanceFunctions: find_description(t, l, d), add="+")
+        objects["available_listboxes"][0][2].bind("<<ListboxSelect>>", lambda event, lbAv=objects["available_listboxes"][0][2], lbOp=objects["available_listboxes"][1][2]:check_DF_listbox(lbAv, lbOp), add="+")
+        objects["available_listboxes"][0][2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=objects["available_listboxes"][0][2], d=backend_API.analysisMethods: find_description(t, l, d), add="+")
+        objects["available_listboxes"][1][2].bind("<<ListboxSelect>>", lambda event, t=objects["description_box"], l=objects["available_listboxes"][1][2], d=backend_API.distanceFunctions: find_description(t, l, d), add="+")
 
     return objects
 
@@ -1185,21 +1189,21 @@ Tab_AnalysisMethods_parameters_displayed=[]
 generated_widgets['AnalysisMethods']=create_module_tab(Tabs_Frames["Tab_AnalysisMethods"], ["Analysis Methods", "Distance Functions"], "AnalysisMethods", RP_listbox=Tab_RP_AnalysisMethods_Listbox, displayed_parameters=Tab_AnalysisMethods_parameters_displayed)
 
 
-# adding items to listboxes from the backendAPI.
-for canonicizer in backendAPI.canonicizers:
+# adding items to listboxes from the backend_API.
+for canonicizer in backend_API.canonicizers:
     generated_widgets["Canonicizers"]["available_listboxes"][0][2].insert(END, canonicizer)
-for driver in backendAPI.eventDrivers:
+for driver in backend_API.eventDrivers:
     generated_widgets["EventDrivers"]["available_listboxes"][0][2].insert(END, driver)
-for distancefunc in backendAPI.distanceFunctions:
+for distancefunc in backend_API.distanceFunctions:
     assert distancefunc!="NA", 'Distance Function cannot have a name of "NA" (Reserved for Analysis methods that do not use a distance function).\nPlease check the file containing the definition of the distance function class, most likely in or imported to DistanceFunction.py,\nand change the return of displayName().'
     generated_widgets["AnalysisMethods"]["available_listboxes"][1][2].insert(END, distancefunc)
-for culling in backendAPI.eventCulling:
+for culling in backend_API.eventCulling:
     generated_widgets["EventCulling"]["available_listboxes"][0][2].insert(END, culling)
-for method in backendAPI.analysisMethods:
+for method in backend_API.analysisMethods:
     generated_widgets["AnalysisMethods"]["available_listboxes"][0][2].insert(END, method)
 #######
 
-if debug>=2:
+if GUI_debug>=2:
     _=0
     for j in generated_widgets:
         _+=len(j)
@@ -1217,23 +1221,23 @@ bottomframe.grid(pady=10, row=1, sticky='swen')
 for c in range(6):
     bottomframe.columnconfigure(c, weight=10)
 
-FinishButton=Button(bottomframe, text="Finish & Review", command=lambda:switch_tabs(tabs, "choose", 5))#note: this button has a hard-coded tab number
-PreviousButton=Button(bottomframe, text="<< Previous", command=lambda:switch_tabs(tabs, "previous"))
-NextButton=Button(bottomframe, text="Next >>", command=lambda:switch_tabs(tabs, "next"))
-Notes_Button=Button(bottomframe, text="Notes", command=notepad)
+finish_button=Button(bottomframe, text="Finish & Review", command=lambda:switch_tabs(tabs, "choose", 5))#note: this button has a hard-coded tab number
+previous_button=Button(bottomframe, text="<< Previous", command=lambda:switch_tabs(tabs, "previous"))
+next_button=Button(bottomframe, text="Next >>", command=lambda:switch_tabs(tabs, "next"))
+notes_button=Button(bottomframe, text="Notes", command=notepad)
 
 Label(bottomframe).grid(row=0, column=0)
 Label(bottomframe).grid(row=0, column=5)
 
-PreviousButton.grid(row=0, column=1, sticky='swen')
-NextButton.grid(row=0, column=2, sticky='swen')
-Notes_Button.grid(row=0, column=3, sticky='swen')
-FinishButton.grid(row=0, column=4, sticky='swen')
+previous_button.grid(row=0, column=1, sticky='swen')
+next_button.grid(row=0, column=2, sticky='swen')
+notes_button.grid(row=0, column=3, sticky='swen')
+finish_button.grid(row=0, column=4, sticky='swen')
 
 statusbar=Frame(topwindow, bd=1, relief=SUNKEN)
 statusbar.grid(row=2, sticky="swe")
 
-welcome_message="By David Berdik and Michael Fang. Version date: %s." %(versiondate)
+welcome_message="By David Berdik and Michael Fang. Version date: %s." %(constants.versiondate)
 statusbar_label=Label(statusbar, text=welcome_message, anchor=W)
 statusbar_label.pack(anchor="e")
 statusbar_label.after(3000, lambda:status_update("", welcome_message))
@@ -1242,6 +1246,7 @@ statusbar_label.after(3000, lambda:status_update("", welcome_message))
 
 def change_style(parent_widget):
     """This changes the colors of the widgets."""
+    if GUI_debug>=4: print("change_style(parent_widget=%s)"%(parent_widget))
     if len(parent_widget.winfo_children())==0: return None
     for widget in parent_widget.winfo_children():
         if isinstance(widget, Button) and "excludestyle" not in widget.__dict__: widget.configure(activebackground=styles[style_choice]["accent_color_mid"], bg=styles[style_choice]["accent_color_mid"], foreground=styles[style_choice]["text"])
@@ -1249,14 +1254,18 @@ def change_style(parent_widget):
         elif isinstance(widget, Listbox): widget.configure(selectbackground=styles[style_choice]["accent_color_mid"], selectforeground=styles[style_choice]["text"])
         elif isinstance(widget, OptionMenu): widget.configure(bg=styles[style_choice]["accent_color_mid"], activebackground=styles[style_choice]["accent_color_light"])
         else: change_style(widget)
-    ttkstyle.map('Treeview', background=[('selected', styles[style_choice]["accent_color_mid"])], foreground=[('selected', "#000000")])
+    ttk_style.map('Treeview', background=[('selected', styles[style_choice]["accent_color_mid"])], foreground=[('selected', "#000000")])
 
 change_style(topwindow)
 
 def change_style_live(themeString):
     """This calls the change_style function to enable theme switching in the menu bar."""
+    if GUI_debug>=3: print("change_style_live(themeString=%s)"%(themeString))
     global style_choice
     style_choice=themeString
+    for entry in range(len(known_authors_list)):
+        if known_authors_list[entry]!=-1:
+            Tab_Documents_KnownAuthors_listbox.itemconfig(entry, background=styles[style_choice]["accent_color_light"], selectbackground=styles[style_choice]["accent_color_mid"])
     change_style(topwindow)
 
 #starts app
