@@ -1,6 +1,4 @@
-dictances
-nltk
-numpy
-tkinter
-deepcopy
-datetime
+dictances==1.5.3
+nltk==3.6.2
+numpy==1.20.3
+tkinter==8.6
