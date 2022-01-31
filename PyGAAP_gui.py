@@ -70,8 +70,8 @@ elif dpi_setting==2:
     
 style_choice="JGAAP_blue"
 styles=dict()
-styles["JGAAP_blue"]={"accent_color_dark":"#7eedfc", "accent_color_mid":"#c9f6fc", "accent_color_light":"#e0f9fc"}
-styles["PyGAAP_pink"]={"accent_color_dark": "#e0b5e5", "accent_color_mid":"#f2e1f4", "accent_color_light":"#f7e5f9"}
+styles["JGAAP_blue"]={"accent_color_dark":"#7eedfc", "accent_color_mid":"#c9f6fc", "accent_color_light":"#e0f9fc", "text":"#000000"}
+styles["PyGAAP_pink"]={"accent_color_dark": "#e0b5e5", "accent_color_mid":"#f2e1f4", "accent_color_light":"#f7e5f9", "text":"#000000"}
 
 if debug>=3: print("Accent colors:", styles[style_choice]["accent_color_dark"], styles[style_choice]["accent_color_mid"], styles[style_choice]["accent_color_mid"])
 ttkstyle.map('Treeview', background=[('selected', styles[style_choice]["accent_color_mid"])], foreground=[('selected', "#000000")])
@@ -92,7 +92,7 @@ statusbar_label=None
 def status_update(displayed_text, ifsame=None):
     """
     updates the text in the status bar.
-    ifsame: only update the text if the text is the same as this string.
+    ifsame: only update the text if the currently displayed text is the same as this string.
     """
     if debug>=3: print("status_update(%s, condition=%s)" %(displayed_text, ifsame))
     global statusbar
@@ -270,7 +270,7 @@ def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displa
         displayed_params.append(Label(param_frame, text="No parameters for this module."))
         displayed_params[-1].pack()
     else: # if this module has parameters, find and display parameters.
-        rowshift=0 # this is the row shift for widgets. It's one when there are two groups of parameters to display.
+        rowshift=0 # this is the row shift for widgets. It's for when there are two groups of parameters to display.
         displayed_params.append(Label(param_frame, text=str(module_name)+":", font=("Helvetica", 14)))
         displayed_params[-1].grid(row=0, column=0, columnspan=2, sticky=W)
         for i in range(number_of_modules):
@@ -647,12 +647,10 @@ def authorsList(authorList, mode):
     if debug>=3: print("authorsList(mode=%s)"%(mode))
     if mode=="add":
         title="Add Author"
-        mode='add'
     elif mode=='edit':
         try:
             authorList.get(authorList.curselection())
             title="Edit Author"
-            mode='edit'
             selected=int(authorList.curselection()[0])
             if KnownAuthorsList[selected]==-1:
                 status_update("Select the author instead of the document.")
@@ -695,6 +693,10 @@ def authorsList(authorList, mode):
         return None
 
     global AuthorWindow
+    try:
+        AuthorWindow.lift()
+        return None
+    except: pass
     
     AuthorWindow=Toplevel()
     AuthorWindow.grab_set()#Disables main window when the add/edit author window appears
@@ -724,7 +726,7 @@ def authorsList(authorList, mode):
         command=lambda:addFile("Add Document For Author", AuthorListbox, False, AuthorWindow))
     AuthorAddDocButton.grid(row=0, column=0)
     AuthorRmvDocButton=Button(AuthorButtonsFrame, text="Remove Document",\
-        command=lambda:select_modules(None, AuthorListbox, 'remove'))
+        command=lambda:select_modules(None, [AuthorListbox], 'remove'))
     AuthorRmvDocButton.grid(row=0, column=1)
     AuthorButtonsFrame.grid(row=2, column=1, sticky='NW')
 
@@ -739,8 +741,7 @@ def authorsList(authorList, mode):
     AuthorOKButton.grid(row=0, column=0, sticky="W")
     AuthorCancelButton=Button(AuthorBottomButtonsFrame, text="Cancel", command=lambda:AuthorWindow.destroy())
     AuthorCancelButton.grid(row=0, column=1, sticky="W")
-    AuthorBottomButtonsFrame.grid(row=3, column=1, pady=7, sticky="NW")
-    
+    AuthorBottomButtonsFrame.grid(row=3, column=1, pady=7, sticky="NW")    
     change_style(AuthorWindow)
 
     AuthorWindow.mainloop()
@@ -1240,11 +1241,12 @@ statusbar_label.after(3000, lambda:status_update("", welcome_message))
 
 
 def change_style(parent_widget):
+    """This changes the colors of the widgets."""
     if len(parent_widget.winfo_children())==0: return None
     for widget in parent_widget.winfo_children():
-        if isinstance(widget, Button) and "excludestyle" not in widget.__dict__: widget.configure(activebackground=styles[style_choice]["accent_color_mid"], bg=styles[style_choice]["accent_color_mid"])
+        if isinstance(widget, Button) and "excludestyle" not in widget.__dict__: widget.configure(activebackground=styles[style_choice]["accent_color_mid"], bg=styles[style_choice]["accent_color_mid"], foreground=styles[style_choice]["text"])
         elif isinstance(widget, Scrollbar): widget.configure(background=styles[style_choice]["accent_color_mid"])
-        elif isinstance(widget, Listbox): widget.configure(selectbackground=styles[style_choice]["accent_color_mid"])
+        elif isinstance(widget, Listbox): widget.configure(selectbackground=styles[style_choice]["accent_color_mid"], selectforeground=styles[style_choice]["text"])
         elif isinstance(widget, OptionMenu): widget.configure(bg=styles[style_choice]["accent_color_mid"], activebackground=styles[style_choice]["accent_color_light"])
         else: change_style(widget)
     ttkstyle.map('Treeview', background=[('selected', styles[style_choice]["accent_color_mid"])], foreground=[('selected', "#000000")])
@@ -1252,6 +1254,7 @@ def change_style(parent_widget):
 change_style(topwindow)
 
 def change_style_live(themeString):
+    """This calls the change_style function to enable theme switching in the menu bar."""
     global style_choice
     style_choice=themeString
     change_style(topwindow)
