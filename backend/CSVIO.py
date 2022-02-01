@@ -27,4 +27,7 @@ def findDocumentPath(documentPathEntry):
 	
 def readDocument(documentPath):
 	'''Returns the contents of the document at the specified path.'''
-	return pathlib.Path(documentPath).read_text()
+	try:
+		return pathlib.Path(documentPath).read_text()
+	except:
+		return pathlib.Path(documentPath).read_text(encoding="UTF-8")
