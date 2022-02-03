@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
-from tokenize import String
 import re
-from xml.etree.ElementTree import canonicalize
 
 # An abstract Canonicizer class.
 class Canonicizer(ABC):
