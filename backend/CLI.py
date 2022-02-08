@@ -8,8 +8,12 @@ from time import time
 
 def cliMain():
 	'''Main function for the PyGAAP CLI'''
-	if len(sys.argv) < 2:
-		_parse_args(True)
+	if len(sys.argv) >= 2:
+		_parse_args()
+	else:
+		print("Starting GUI")
+		import PyGAAP_gui
+		return None
 		
 	args = _parse_args()
 	
