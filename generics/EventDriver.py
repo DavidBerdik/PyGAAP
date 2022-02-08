@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from matplotlib.pyplot import eventplot
 from nltk import ngrams
 from nltk.tokenize import word_tokenize, sent_tokenize
 
@@ -103,3 +104,32 @@ class SentenceEventDriver(EventDriver):
 	def displayDescription():
 		return "Returns a list of sentences as defined by the NLTK Sentence Tokenizer."
 
+class CharacterPositionEventDriver(EventDriver):
+	'''Event Driver for letter positions. Only used on texts with delimited words (after canonicization).'''
+
+	delimiter="<whitespace(s)>"
+	_variable_options = {"delimiter": ["<whitespace(s)>", ", (comma)", ". (period)", "? (q. mark)", "! (excl. mark)", "& (ampersand)", "% (percent sign)", "$ (dollar sign)"]}
+	_variable_GUItype = {"delimiter": "OptionMenu"}
+
+	def createEventSet(self, procText):
+
+		eventSet = []
+		if self.delimiter == "<whitespace(s)>":
+			splitText = procText.split()
+		else:
+			splitText = procText.split(self.delimiter[0])
+
+		for word in splitText:
+			eventSet += [str(word[letterIndex] + str(letterIndex)) for letterIndex in range(len(word))]
+		print(eventSet)
+		return eventSet
+
+	def setParams(self, params):
+		'''This function is required, but does not do anything for this event driver.'''
+		pass
+	
+	def displayName():
+		return "Character Position"
+
+	def displayDescription():
+		return "Converts delimited words into list of letters with their positions within the word.\nRecommended with the Cangjie canonicizer"

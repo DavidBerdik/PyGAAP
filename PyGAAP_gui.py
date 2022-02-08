@@ -1197,16 +1197,16 @@ generated_widgets['AnalysisMethods']=create_module_tab(Tabs_Frames["Tab_Analysis
 
 
 # adding items to listboxes from the backend_API.
-for canonicizer in backend_API.canonicizers:
+for canonicizer in sorted(list(backend_API.canonicizers.keys())):
     generated_widgets["Canonicizers"]["available_listboxes"][0][2].insert(END, canonicizer)
-for driver in backend_API.eventDrivers:
+for driver in sorted(list(backend_API.eventDrivers.keys())):
     generated_widgets["EventDrivers"]["available_listboxes"][0][2].insert(END, driver)
-for distancefunc in backend_API.distanceFunctions:
+for distancefunc in sorted(list(backend_API.distanceFunctions.keys())):
     assert distancefunc!="NA", 'Distance Function cannot have a name of "NA" (Reserved for Analysis methods that do not use a distance function).\nPlease check the file containing the definition of the distance function class, most likely in or imported to DistanceFunction.py,\nand change the return of displayName().'
     generated_widgets["AnalysisMethods"]["available_listboxes"][1][2].insert(END, distancefunc)
-for culling in backend_API.eventCulling:
+for culling in sorted(list(backend_API.eventCulling.keys())):
     generated_widgets["EventCulling"]["available_listboxes"][0][2].insert(END, culling)
-for method in backend_API.analysisMethods:
+for method in sorted(list(backend_API.analysisMethods.keys())):
     generated_widgets["AnalysisMethods"]["available_listboxes"][0][2].insert(END, method)
 #######
 
