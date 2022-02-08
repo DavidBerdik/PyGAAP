@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import re
 import numpy as np
+from sklearn.multiclass import OutputCodeClassifier
 
 # An abstract Canonicizer class.
 class Canonicizer(ABC):
@@ -102,9 +103,8 @@ class CangjieConvertStripPunctuations(Canonicizer):
 	# The initializing of the lookup table depends on a hard-coded number of lines in the lookup table text file.
 	_lookupTable=np.empty_like(['abcde'], dtype="<U5", shape=(175135,))
 
-
 	def __init__(self):
-		lookupTableFile = open("./extra/canonicizer_CangjieConverter/CangjieConvertTable.txt")
+		lookupTableFile = open("./extra/canonicizer_CangjieConverter/CangjieConvertTable_Chinese.txt")
 		lookupRead = lookupTableFile.read().split("\n")
 		lookupTableFile.close()
 		
@@ -133,13 +133,15 @@ class CangjieConvertStripPunctuations(Canonicizer):
 			try:
 				unicodeNumber = ord(character)
 				code = self._lookupTable[unicodeNumber - 19968]
-				outText+=code+" "
-			except:
+				if code != "" and unicodeNumber >= 19968:
+					outText+=code+" "
+			except IndexError:
 				continue
+		print(outText)
 		return outText
 	
 	def displayDescription():
-		return "Converts each Traditional or Simplified Chinese character to its Cangjie code, Stripping punctuations."
+		return "[Chinese] Converts each Traditional or Simplified character to its Cangjie code, Stripping punctuations."
 
 	def displayName():
 		return "Cangjie-convert to letters (Strips punctuations)"
@@ -156,13 +158,56 @@ class CangjieConvertLeavePunctuations(Canonicizer):
 			try:
 				unicodeNumber = ord(character)
 				code = self._lookupTable[unicodeNumber - 19968]
-				outText+=code+" "
-			except:
+				if code != "" and unicodeNumber >= 19968:
+					outText+=code+" "
+				else:
+					outText+=character+" "
+			except IndexError:
 				outText+=character+" "
+		print(outText)
 		return outText
 
 	def displayDescription():
-		return "Converts each Traditional or Simplified Chinese character to its Cangjie code, Leaving punctuations. Stripping numbers prior to this is highly recommended."
+		return "[Chinese] Converts each Traditional or Simplified character to its Cangjie code, Leaving punctuations. Stripping numbers prior to this is highly recommended."
 
 	def displayName():
 		return "Cangjie-convert to letters (Leaves punctuations)"
+
+
+class CangjieConvertLeavesPunctuationsJapanese(Canonicizer):
+	# The initializing of the lookup table depends on a hard-coded number of lines in the lookup table text file.
+	_lookupTable=np.empty_like(['abcde'], dtype="<U5", shape=(21000,))
+	def __init__(self):
+		lookupTableFile = open("./extra/canonicizer_CangjieConverter/CangjieConvertTable_Japanese.txt")
+		lookupRead = lookupTableFile.read().split("\n")
+		lookupTableFile.close()
+
+		for line in lookupRead:
+			char = line.split(",")
+			if len(char) == 1: continue
+			try:
+				self._lookupTable[int(char[0]) - 19968] = char[1]
+			except:
+				raise IndexError("CharacterTable.txt is longer than expected, please update the initialization of the table in Canonicizers.CangjieConvert.")
+		return None
+
+	def process(self, procText):
+		outText=""
+		for character in procText:
+			try:
+				unicodeNumber = ord(character)
+				code = self._lookupTable[unicodeNumber - 19968]
+				if code != "" and unicodeNumber >= 19968:
+					outText += code+" "
+				else:
+					outText += character+" "
+			except IndexError:
+				outText += character+" "
+		print(outText)
+		return outText
+	
+	def displayDescription():
+		return "[Japanese] Converts each Traditional or Simplified character to its Cangjie code, Leaving punctuations."
+
+	def displayName():
+		return "Cangjie-convert (Japanese)"

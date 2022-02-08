@@ -17,6 +17,7 @@ from tkinter.filedialog import askopenfilename
 from backend.API import API
 from backend.CSVIO import readDocument
 from backend.Document import Document
+from backend import CSVIO
 import constants
 
 topwindow=Tk() #this is the top-level window when you first open PyGAAP
@@ -215,7 +216,13 @@ def set_parameters(stringvar, API_dict, module, variable_name):
     """sets parameters whenever the widget is touched."""
     if GUI_debug>=3: print("set_parameters(module=%s, variable_name=%s)"%(module, variable_name))
     value_to=stringvar.get()
-    setattr(API_dict[module], variable_name, int(value_to))
+    try:
+        value_to=float(value_to) # if value is a number, try converting to a number.
+        if int(value_to) - value_to < 0.00001:
+            value_to = int(value_to)
+    except:
+        pass
+    setattr(API_dict[module], variable_name, value_to)
     return None
 
 def find_parameters(param_frame: Frame, listbox: Listbox or ttk.Treeview, displayed_params: list, clear: bool=False, **options):
