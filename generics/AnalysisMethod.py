@@ -51,23 +51,6 @@ class CentroidDriver(AnalysisMethod):
 	def displayDescription():
 		return "Computes one centroid per Author.\nCentroids are the average relitive frequency of events over all docuents provided.\ni=1 to n ΣfrequencyIn_i(event)."
 
-class NoDistanceFunctionTest(AnalysisMethod):
-	_NoDistanceFunction_=True
-	def train(self): pass
-	def analyze(self): return 0
-	def displayName(): return "No Distance Function Test"
-	def displayDescription(): return "An empty method to test disabling of the distance function listbox."
-
-class ADwithparameter(AnalysisMethod):
-	test_param1=4
-	test_param2=10
-	_variable_options={"test_param1": list(range(7)), "test_param2": list(range(9, 12))}
-	_variable_GUItype={"test_param1": "OptionMenu", "test_param2": "OptionMenu"}
-	def train(self): pass
-	def analyze(self): return 0
-	def displayName(): return "test AD w params"
-	def displayDescription(): return "An empty method to test the GUI parameter display."
-
 class CrossEntropy(AnalysisMethod):
 	mode="author"
 
