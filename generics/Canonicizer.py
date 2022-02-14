@@ -137,7 +137,6 @@ class CangjieConvertStripPunctuations(Canonicizer):
 					outText+=code+" "
 			except IndexError:
 				continue
-		print(outText)
 		return outText
 	
 	def displayDescription():
@@ -164,7 +163,6 @@ class CangjieConvertLeavePunctuations(Canonicizer):
 					outText+=character+" "
 			except IndexError:
 				outText+=character+" "
-		print(outText)
 		return outText
 
 	def displayDescription():
@@ -203,7 +201,6 @@ class CangjieConvertLeavesPunctuationsJapanese(Canonicizer):
 					outText += character+" "
 			except IndexError:
 				outText += character+" "
-		print(outText)
 		return outText
 	
 	def displayDescription():

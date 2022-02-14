@@ -12,6 +12,38 @@ class API:
 	distanceFunctions = dict()
 	eventCulling = dict()
 	documents = []
+
+	moduleTypeDict = {
+		"canonicizers": canonicizers,
+		"eventDrivers": eventDrivers,
+		"eventCulling": eventCulling,
+		"analysisMethods": analysisMethods,
+		"distanceFunctions": distanceFunctions,
+
+		"Canonicizers": canonicizers,
+		"EventDrivers": eventDrivers,
+		"EventCulling": eventCulling,
+		"AnalysisMethods": analysisMethods,
+		"DistanceFunctions": distanceFunctions,
+
+		"Canonicizers": canonicizers,
+		"Event Drivers": eventDrivers,
+		"Event Culling": eventCulling,
+		"Analysis Methods": analysisMethods,
+		"Distance Functions": distanceFunctions
+	}
+
+	# these are lists of modules (and their params) added to the processing queue.
+	# lists may contain multiple instances of the same module.
+	# ! This currently only works for the GUI.
+	modulesInUse={
+		"Canonicizers": [],
+		"EventDrivers": [],
+		"EventCulling": [],
+		"AnalysisMethods": [],
+		"DistanceFunctions": []
+	}
+
 	
 	def __init__(self, documents):
 		'''Build dictionaries of all the different parameters we can choose from.'''

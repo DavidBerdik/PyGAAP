@@ -6,12 +6,15 @@ from backend.Document import Document
 from pathlib import Path
 from time import time
 
+gui = False
+
 def cliMain():
 	'''Main function for the PyGAAP CLI'''
 	if len(sys.argv) >= 2:
 		_parse_args()
 	else:
 		print("Starting GUI")
+		gui = True
 		import PyGAAP_gui
 		return None
 		

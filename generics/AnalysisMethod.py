@@ -1,12 +1,18 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 import math
 import backend.Histograms as histograms
-
 
 # An abstract AnalysisMethod class.
 class AnalysisMethod(ABC):
 	distance = None
+	_variable_options = dict()
 	
+	def __init__(self):
+		try:
+			for variable in self._variable_options:
+				setattr(self, variable, self._variable_options[variable]["options"][self._variable_options[variable]["default"]])
+		except:
+			self._variable_options = dict()	
 	@abstractmethod
 	def train(self, knownDocuments):
 		'''Train a model on the knownDocuments.'''
@@ -30,7 +36,7 @@ class AnalysisMethod(ABC):
 	def setDistanceFunction(self, distance):
 		'''Sets the distance function to be used by the analysis driver.'''
 		self.distance = distance
-		
+
 class CentroidDriver(AnalysisMethod):
 	_authorHistograms = None
 	
@@ -53,12 +59,10 @@ class CentroidDriver(AnalysisMethod):
 
 class CrossEntropy(AnalysisMethod):
 	mode="author"
-
 	_NoDistanceFunction_ = True
 	_histograms = None
 	_histogramsNp = None
-	_variable_options = {"mode": ["author", "document"]}
-	_variable_GUItype = {"mode": "OptionMenu"}
+	_variable_options = {"mode": {"default": 0, "type": "OptionMenu", "options": ["author", "document"]}}
 
 	def train(self, knownDocuments):
 		if self.mode == "author":
