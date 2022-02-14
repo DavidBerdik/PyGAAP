@@ -3,13 +3,16 @@ from matplotlib.pyplot import eventplot
 from nltk import ngrams
 from nltk.tokenize import word_tokenize, sent_tokenize
 
-'''
-changes:
-added __variable_options, __variable_GUItype to classes with class variables.
-'''
-
 # An abstract EventDriver class.
 class EventDriver(ABC):
+
+	def __init__(self):
+		try:
+			for variable in self._variable_options:
+				setattr(self, variable, self._variable_options[variable]["options"][self._variable_options[variable]["default"]])
+		except:
+			self._variable_options = dict()
+
 	@abstractmethod
 	def displayName():
 		'''Returns the display name for the given event driver.'''
@@ -27,14 +30,14 @@ class EventDriver(ABC):
 	@abstractmethod
 	def displayDescription():
 		pass
-		
+	
 # REFERENCE CLASS FOR PyGAAP GUI.
 class CharacterNGramEventDriver(EventDriver):
 	'''Event Driver for Character N-Grams'''
 	n = 2
-	_variable_options={"n": list(range(2, 8))} # for PyGAAP GUI to know which options to list/are valid
-	_variable_GUItype={"n": "OptionMenu"}		# for PyGAAP GUI to know what kind of tkinter widget to use to set the variables. Can be "OptionMenu" or "Entry"
-	
+	_variable_options={"n": {"options": list(range(1, 21)), "default": 1, "type": "OptionMenu"}}
+	# for PyGAAP GUI to know which options to list/are valid
+		
 	def createEventSet(self, procText):
 		'''Returns a list containing the desired character n-grams.'''
 		nltkRawOutput = list(ngrams(procText, self.n)) # This gives us a list of tuples.
@@ -108,7 +111,13 @@ class CharacterPositionEventDriver(EventDriver):
 	'''Event Driver for letter positions. Only used on texts with delimited words (after canonicization).'''
 
 	delimiter="<whitespace(s)>"
-	_variable_options = {"delimiter": ["<whitespace(s)>", ", (comma)", ". (period)", "? (q. mark)", "! (excl. mark)", "& (ampersand)", "% (percent sign)", "$ (dollar sign)"]}
+	_variable_options = {"delimiter":
+		{
+			"options": ["<whitespace(s)>", ", (comma)", ". (period)", "; (semicolon)"],
+			"type": "OptionMenu",
+			"default": 0
+		}
+	}
 	_variable_GUItype = {"delimiter": "OptionMenu"}
 
 	def createEventSet(self, procText):
@@ -120,8 +129,7 @@ class CharacterPositionEventDriver(EventDriver):
 			splitText = procText.split(self.delimiter[0])
 
 		for word in splitText:
-			eventSet += [str(word[letterIndex] + str(letterIndex)) for letterIndex in range(len(word))]
-		print(eventSet)
+			eventSet += [str(word[letterIndex] + "_" + str(letterIndex)) for letterIndex in range(len(word))]
 		return eventSet
 
 	def setParams(self, params):

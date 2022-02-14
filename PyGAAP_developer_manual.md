@@ -4,15 +4,21 @@ See https://evllabs.github.io/JGAAP/
 # PyGAAP Developer Manual
 
 # Table of contents
-1. [Widget structures](#structures)
+1. [Key differences from JGAAP](#key_differences)
+2. [Widget structures](#structures)
    1. [Outline of tkinter widgets](#Outline_of_tkinter_widgets)
    2. [Function Calls](#nested_funcs)
-2. [Adding a new module](#new_mod)
+3. [Adding a new module](#new_mod)
    1. [Classs variables](#class_variables)
    2. [Class functions](#class_functions)
 
+# Key differences from JGAAP <a name="key-differences"></a>
+## Module parameters
+1. Unlike JGAAP, PyGAAP does not (currently) use dedicated classes for module class parameters. See [Class variables](#class_variables).
 
-# Widget structures <a name="Structures"></a>
+
+
+# Widget structures <a name="structures"></a>
 ## Outline of tkinter widgets <a name="Outline_of_tkinter_widgets"></a>
 
 ```
@@ -81,19 +87,19 @@ authorsList(.., mode)                                 #called when a button in [
 
 
 # Adding a new module <a name="new_mod"></a>
-Each module is a class in or imported to the file containing modules of the same type. These types are canonicizers (```Canonicizer.py```), event drivers (```EventDriver.py```), event cullers (```EventCulling.py```), analysis methods (```AnalysisMethod.py```), and distance functions (```DistanceFunction.py```). 
+Each module is a class in or imported to the file containing modules of the same type. These types are canonicizers (```Canonicizer.py```), event drivers (```EventDriver.py```), event cullers (```EventCulling.py```), analysis methods (```AnalysisMethod.py```), and distance functions (```DistanceFunction.py```). Add package dependencies and their version numbers to ```./requirements.txt```, if applicable.
 
 ## <span style="color:#aaeeff">Class variables</span> <a name="class_variables"></a>
 Class variables are decleared within the class definition.
 
 ### <span style="color:#aaeeff">User parameters for Event Drivers, Event Culling and Analysis Methods
-Each user parameter is a class variable exposed to the GUI. These variables must also have corresponding entries in both ```_variable_options``` and ```_variable_GUItype```, and their names cannot begin with a "```_```".
+Each user parameter is a class variable exposed to the GUI. These variables must also have corresponding entries in ```_variable_options```, and their names cannot begin with a "```_```".
 Conversely, to hide a class variable from the GUI, prefix the name with a "```_```".
 
-- ```_variable_options``` (dictionary) lists available options for a class variable. The values are lists.\
-example: ```{"variable_1": list(range(3, 10)), "variable_2": ["option_1", "option_2"]}```
-- ```_variable_GUItype``` (dictionary) describes what tkinter widget to use when displaying the variable. Currently only ```OptionMenu``` is supported.\
-example: ```{"variable": "OptionMenu"}```
+- ```_variable_options``` (dictionary) lists the options, GUI type, and the default values of variables. The variables' names are the keys and their attributes are dicts. Each dict for a variable must have ```"options"``` for range of available choices, ```"type"``` for the GUI widget type (currently only ```OptionMenu``` is supported), and ```"default"``` for the default value _**as an index of the ```"options"``` list**_ (for the example below, the default corresponds to ```0```, which picks the item with ```0``` index in the ```"options"``` list as the default value, i.e. the default **value** is ```3```).\
+Example:
+```{"variable_1": {"options": list(range(3, 10)), "type": OptionMenu, "default": 0}}```
+
 
 ### <span style="color:#aaeeff">Class variables for Analysis Methods
 - ```_NoDistanceFunction_``` (boolean) if an anlysis method does not allow a distance function to be set, add this and set it to ```True```. It's okay to omit this variable if it would be set to ```False```.
@@ -105,7 +111,7 @@ example: ```{"variable": "OptionMenu"}```
 
 > ❗ Make sure to **return** and not (just) print the names and descriptions.
 
-Type-specific functions:
+Functions by types of module:
 - Canonicizers:
    - ```process()``` (String $\rightarrow$ String) 
 - Event drivers:
