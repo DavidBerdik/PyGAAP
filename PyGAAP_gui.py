@@ -2,7 +2,8 @@
 # Java Graphical Authorship Attribution Program by Patrick Juola
 # For JGAAP see https://evllabs.github.io/JGAAP/
 #
-# See PyGAAP_developer_manual.md for a guide to the structure of the GUI.
+# See PyGAAP_developer_manual.md for a guide to the structure of the GUI
+# and how to add new modules.
 # @ author: Michael Fang
 #
 # Style note: if-print checks using the GUI_debug variable
@@ -16,14 +17,15 @@ GUI_debug = 0
 #   info printed to the terminal.
 
 from copy import deepcopy
+from multiprocessing import Process, Queue
 from datetime import datetime
 from tkinter import *
 from tkinter import ttk
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, asksaveasfilename
 
 # LOCAL IMPORTS
 from backend.API import API
-from backend.CSVIO import readDocument
+from backend.CSVIO import readDocument, readCorpusCSV, readExperimentCSV
 from backend.Document import Document
 from backend import CSVIO
 import constants
@@ -40,7 +42,8 @@ try:topwindow.tk.call(
         'iconphoto',
         topwindow._w,
         PhotoImage(file = './applogo.png'))
-except: pass
+except TclError:
+    print("Error: applogo.png not found.")
 
 topwindow.rowconfigure(0, weight = 1)
 topwindow.rowconfigure(1, weight = 0, minsize = 50)
@@ -54,34 +57,44 @@ if dpi > 72:
     if GUI_debug >= 2: print("1x UI scale")
     dpi_setting = 1
     topwindow.geometry("1000x670")
-    scrollbar_width = 16
+    
 else:
     if GUI_debug >= 2: print("2x UI scale")
     dpi_setting = 2
     topwindow.geometry("2000x1150")
-    scrollbar_width = 28
+    
 
 if dpi_setting == None:
     raise ValueError("Unknown DPI setting %s."% (str(dpi_setting)))
 
 if dpi_setting == 1:
+    # standard scaling
+    dpi_scrollbar_width = 16
+    dpi_option_menu_width = 10
+    dpi_language_dropdown_width = 18
     dpi_process_window_geometry = "200x100"
     dpi_progress_bar_length = 200
     dpi_about_page_geometry = "600x300"
     dpi_author_window_geometry = "550x340"
     dpi_treeview_entry_height = 1
     dpi_process_window_geometry_finished = "700x900"
+    dpi_description_box_border = 3
 
     ttk_style = ttk.Style()
     ttk_style.configure('Treeview', rowheight = 20)
 
 elif dpi_setting == 2:
+    # double scaling
+    dpi_scrollbar_width = 28
+    dpi_option_menu_width = 10
+    dpi_language_dropdown_width =18
     dpi_process_window_geometry = "500x200"
     dpi_progress_bar_length = 400
     dpi_about_page_geometry = "1200x600"
     dpi_author_window_geometry = "1170x590"
     dpi_treeview_entry_height = 2
-    dpi_process_window_geometry_finished = "1300x1100"
+    dpi_process_window_geometry_finished = "1400x1100"
+    dpi_description_box_border = 5
 
     ttk_style = ttk.Style()
     ttk_style.configure('Treeview', rowheight = 35)
@@ -111,6 +124,17 @@ ttk_style.map(
         foreground = [('selected', "#000000")]
         )
 
+multiprocessing_limit_docs = float("inf")
+# See TODO 1.
+# the number of docs before
+# multi-processing is used.
+
+multiprocessing_limit_analysis = float("inf")
+# See TODO 1.
+# the sum score of the
+# "time-consumingness" of analysis methods
+# before multi-processing is used.
+
 ###############################
 #### BACKEND API ##############
 backend_API = API("place-holder")
@@ -126,7 +150,7 @@ def todofunc():
 statusbar = None
 statusbar_label = None
 
-def status_update(displayed_text, ifsame = None):
+def status_update(displayed_text="", ifsame=None):
     """
     updates the text in the status bar.
     """
@@ -150,44 +174,7 @@ def status_update(displayed_text, ifsame = None):
             statusbar_label.config(text = displayed_text)
     return None
 
-
-all_parameters = {
-                "Canonicizers": {"modules":dict(),
-                "API": backend_API.canonicizers},
-
-                "EventDrivers": {"modules":dict(), 
-                "API": backend_API.eventDrivers},
-
-                "EventCulling": {"modules":dict(),
-                "API": backend_API.eventCulling},
-
-                "AnalysisMethods": {"modules":dict(),
-                "API": backend_API.analysisMethods},
-
-                "DistanceFunctions": {"modules":dict(),
-                "API": backend_API.distanceFunctions}
-                }
-
-for module_class in all_parameters:
-    for module in all_parameters[module_class]["API"]:
-        all_parameters[module_class]["modules"][module] = []
-        for var in all_parameters[module_class]["API"][module].__dict__:
-            number_of_exposed_variables = 0
-            item = all_parameters[module_class]["API"][module].__dict__[var]
-            # item: the object instance in the API.
-            # The object has the methods actually processing the text.
-            if callable(item) == True or var[0] == "_": continue
-            number_of_exposed_variables += 1
-            try:
-                _variable_options = all_parameters[module_class]["API"][module]._variable_options
-                _variable_GUItype = all_parameters[module_class]["API"][module]._variable_GUItype
-            except AttributeError:
-                continue
-            if _variable_GUItype[var] == "OptionMenu":
-                options = _variable_options[var]
-                all_parameters[module_class]["modules"][module].append(
-                    {"options":options, "default":item, "type": "OptionMenu", "label": var}
-                    )
+# all_parameters: deferred parameter building to the backend.
 
 def select_modules(listbox_available: Listbox,
                    Listbox_operate: list,
@@ -221,20 +208,22 @@ def select_modules(listbox_available: Listbox,
             if type(Listbox_operate[0]) == Listbox:
                 removed = Listbox_operate[0].curselection()
                 assert len(removed) > 0
-                backend_API.modulesInUse[module_type].pop(removed[0])
             else:
                 removed = Listbox_operate[0].selection()
-                removed_index = Listbox_operate[0].index(Listbox_operate[0].selection())
-                backend_API.modulesInUse[module_type].pop(removed_index)
-                backend_API.modulesInUse["DistanceFunctions"].pop(removed_index)
-            status_update("")
+                removed_index = Listbox_operate[0].index(removed)
+            status_update()
+            for listbox_member in Listbox_operate:
+                listbox_member.delete(removed)
         
-        except (ValueError, AssertionError):
+        except (ValueError, AssertionError, TclError):
             if GUI_debug > 0: print("remove from list: nothing selected or empty list.")
             status_update("Nothing selected.")
             return None
-        for listbox_member in Listbox_operate:
-            listbox_member.delete(removed)
+        if type(Listbox_operate[0]) == Listbox:
+                backend_API.modulesInUse[module_type].pop(removed[0])
+        else:
+            backend_API.modulesInUse[module_type].pop(removed_index)
+            backend_API.modulesInUse["DistanceFunctions"].pop(removed_index)
         return None
 
     elif function == "add":
@@ -245,13 +234,17 @@ def select_modules(listbox_available: Listbox,
                 # canonicizers, event drivers, event cullers.
                 selected_module =\
                     listbox_available[0].get(listbox_available[0].curselection())
-                backend_API.modulesInUse[module_type].append(backend_API.moduleTypeDict[module_type].get(selected_module)())
+                backend_API.modulesInUse[module_type].append(
+                    backend_API.moduleTypeDict[module_type].get(selected_module)()
+                )
             elif len(listbox_available) > 1 \
                     and listbox_available[1]['state'] == DISABLED:
                 # analysis methods, no distance function
                 selected_module =\
                     (listbox_available[0].get(listbox_available[0].curselection()), "NA")
-                backend_API.modulesInUse[module_type].append(backend_API.moduleTypeDict[module_type].get(selected_module[0])())
+                backend_API.modulesInUse[module_type].append(
+                    backend_API.moduleTypeDict[module_type].get(selected_module[0])()
+                )
                 backend_API.modulesInUse["DistanceFunctions"].append("NA")
             else:
                 # analysis methods with distance function
@@ -259,16 +252,20 @@ def select_modules(listbox_available: Listbox,
                     listbox_available[0].get(listbox_available[0].curselection()),
                     listbox_available[1].get(listbox_available[1].curselection())
                 ]
-                backend_API.modulesInUse["AnalysisMethods"].append(backend_API.moduleTypeDict[module_type].get(selected_module[0])())
-                backend_API.modulesInUse["DistanceFunctions"].append(backend_API.moduleTypeDict["DistanceFunctions"].get(selected_module[1])())
-            status_update("")
+                backend_API.modulesInUse["AnalysisMethods"].append(
+                    backend_API.moduleTypeDict[module_type].get(selected_module[0])()
+                )
+                backend_API.modulesInUse["DistanceFunctions"].append(
+                    backend_API.moduleTypeDict["DistanceFunctions"].get(selected_module[1])()
+                )
+            status_update()
 
         except TclError:
             status_update("Nothing selected or missing selection.")
             if GUI_debug > 0: print("add to list: nothing selected")
             return None
-        except:
-            status_update("Error: Module retrieval failed.")
+        # except:
+        #     status_update("Error: Module retrieval failed.")
 
         for listbox_member in Listbox_operate:
             if type(Listbox_operate[0]) == Listbox:
@@ -303,7 +300,7 @@ def find_description(desc: Text,
 
     """find description of a module."""
 
-    # TODO low priority:
+    # TODO 3 low priority:
     #   retrieve desc from individual instances instead of from the API dict.
 
     # desc: the tkinter Text object to display the description.
@@ -359,6 +356,11 @@ def set_parameters(stringvar, module, variable_name):
         pass
     setattr(module, variable_name, value_to)
     return None
+
+def set_API_global_parameters(parameter, stringvar):
+    """Wrapper for backend_API's global parameter setter"""
+    backend_API.set_global_parameters(parameter, stringvar.get())
+    return
 
 def find_parameters(param_frame: Frame,
                     listbox: Listbox or ttk.Treeview,
@@ -477,7 +479,7 @@ def find_parameters(param_frame: Frame,
 
             if this_module._variable_options[parameter_i]["type"] == 'Entry':
                 raise NotImplementedError
-                # TODO priority low:
+                # TODO 2 priority low:
                 # implement text entry for parameters.
                 displayed_params.append(Entry(param_frame))
                 displayed_params[-1].insert(
@@ -486,8 +488,13 @@ def find_parameters(param_frame: Frame,
                 displayed_params[-1].grid(row = i + 1 + rowshift, column = 1, sticky = W)
             elif this_module._variable_options[parameter_i]["type"] == 'OptionMenu':
                 displayed_params.append(
-                    OptionMenu(param_frame, param_options[-1], *this_module._variable_options[parameter_i]['options'])
+                    OptionMenu(
+                        param_frame, 
+                        param_options[-1],
+                        *this_module._variable_options[parameter_i]['options']
+                    )
                 )
+                displayed_params[-1].config(width = dpi_option_menu_width)
                 displayed_params[-1].grid(row = i + 1 + rowshift, column = 1, sticky = W)
                 param_options[-1].trace_add(("write"),
                     lambda v1, v2, v3, stringvar = param_options[-1],
@@ -509,8 +516,34 @@ def find_parameters(param_frame: Frame,
     param_frame.columnconfigure(1, weight = 3)
     return None
 
+def run_pre_processing(backend_API, doc: Document, dump_queue = None):
+    """
+    Run pre-processing on a single document:
+    Canonicizers, event drivers, event cullers.
+    """
+    # doc: the document passed in.
+    # dump_queue: when multi-processing,
+    # the shared queue to temporarily store the documents.
+
+    for c in backend_API.modulesInUse["Canonicizers"]:
+        c._global_parameters = backend_API.global_parameters
+        doc.text = c.process(doc.text)
+    
+    for e in backend_API.modulesInUse["EventDrivers"]:
+        e._global_parameters = backend_API.global_parameters
+        doc.setEventSet(e.createEventSet(doc.text), append=True)
+    
+    if len(backend_API.modulesInUse["EventCulling"]) != 0:
+        raise NotImplementedError
+        #?._global_parameters = backend_API.global_parameters
+    
+    if dump_queue != None:
+        dump_queue.put(doc)
+    else:
+        return doc
+
 process_window = None
-def process(params: dict,
+def run_experiment(params: dict,
             check_listboxes: list,
             check_labels: list,
             process_button: Button,
@@ -525,7 +558,7 @@ def process(params: dict,
     #   list of listboxes that shouldn't be empty.
     # check_labels:
     #   list of labels whose text colors need to be updated upon checking the listboxes.
-    if GUI_debug >= 3: print("process(click = %s)\nparams = %s" %(click, params))
+    if GUI_debug >= 3: print("run_experiment(click = %s)\nparams = %s" %(click, params))
     all_set = True
     # first check if the listboxes in check_listboxes are empty. If empty
     process_button.config(state = NORMAL, text = "Process", )
@@ -562,7 +595,7 @@ def process(params: dict,
         process_window,
         length = dpi_progress_bar_length,
         mode = "indeterminate"
-        )
+    )
     
     progressbar.pack(anchor = CENTER, pady = 40)
     process_window.bind("<Destroy>", lambda event, b = "":status_update(b))
@@ -572,6 +605,12 @@ def process(params: dict,
     # LOADING DOCUMENTS
     process_message = Label(process_window, text = "Error loading documents")
     process_message.pack()
+
+    canonicizers_names = list(params["Canonicizers"].get(0, END))
+    event_drivers_names = list(params["EventDrivers"].get(0, END))
+    event_cullers_names = list(params["EventCulling"].get(0, END))
+    am_df_names = [params["AnalysisMethods"].item(j)["values"]
+                    for j in list(params["AnalysisMethods"].get_children())]
 
     # gathering the known (corpus) documents
     docs = []
@@ -593,50 +632,55 @@ def process(params: dict,
     backend_API.documents = docs
     if GUI_debug >= 2: print(backend_API.modulesInUse)
 
-    # THESE ARE MODELED FROM LINES IN CLI.PY
-    # RUN CANONICIZERS
-    process_message.configure(text = "Error running canonicizers")
-    if GUI_debug >= 3: print("Running canonicizers")
-    for c in backend_API.modulesInUse["Canonicizers"]:
+    if len(backend_API.documents) < multiprocessing_limit_docs:
+        # only use multi-processing when the number of docs is large.
+        if GUI_debug >= 2: print("single-threading.")
+        processed_docs = []
         for doc in backend_API.documents:
-            doc.text = c.process(doc.text)
-    
-    # RUN EVENT DRIVERS
-    process_message.configure(text = "Error running event drivers")
-    if GUI_debug >= 3: print("Running event drivers")
-    for e in backend_API.modulesInUse["EventDrivers"]:
+            processed_docs.append(run_pre_processing(backend_API, doc))
+        backend_API.documents = processed_docs
+
+    else:
+        # TODO 1 priority high:
+        # implement multi-processing for pre-processing.
+        raise NotImplementedError
+        if GUI_debug >= 2: print("multi-threading")
+        process_list = []
+        dump_queue = Queue()
         for doc in backend_API.documents:
-            doc.setEventSet(e.createEventSet(doc.text))
-    
-    # RUN EVENT CULLERS
-    process_message.configure(text = "Error rnning event cullers")
-    if GUI_debug >= 3: print("Running event cullers: not implemented yet")
-    #######
+            process_list.append(Process(target = run_pre_processing(backend_API, doc, dump_queue)))
+            process_list[-1].start()
+        for proc in process_list:
+            proc.join()
+        backend_API.documents = []
+        while not dump_queue.empty():
+            doc_get = dump_queue.get()
+            backend_API.documents.append(doc_get)
 
     # RUN ANALYSIS ON UNKNOWN DOCS
-    unknown_docs = [d for d in deepcopy(backend_API.documents) if d.author == None]
-    known_docs = [d for d in deepcopy(backend_API.documents) if d.author != None]
-
-    canonicizers_names = list(params["Canonicizers"].get(0, END))
-    event_drivers_names = list(params["EventDrivers"].get(0, END))
-    event_cullers_names = list(params["EventCulling"].get(0, END))
-    am_df_names = [params["AnalysisMethods"].item(j)["values"]
-                    for j in list(params["AnalysisMethods"].get_children())]
+    unknown_docs = [d for d in deepcopy(backend_API.documents) if (d.author == None or d.author == "")]
+    known_docs = [d for d in deepcopy(backend_API.documents) if (d.author != None and d.author != "")]
     
+    # TODO 1 priority high:
+    # implement multi-processing for analysis methods.
+    # if $score < multiprocessing_limit_analysis:
+        
     results = []
     if GUI_debug >= 3: print("Running analysis methods")
     for am_df_index in range(len(backend_API.modulesInUse["AnalysisMethods"])):
         am_df_pair = (backend_API.modulesInUse["AnalysisMethods"][am_df_index],
                       backend_API.modulesInUse["DistanceFunctions"][am_df_index])
         process_message.configure(text = "Error running " + str(am_df_pair[0]))
-        am_df_pair[0].setDistanceFunction(backend_API.distanceFunctions.get(am_df_pair[1]))
+
+        am_df_pair[0]._global_parameters = backend_API.global_parameters
+        am_df_pair[1]._global_parameters = backend_API.global_parameters
+
+        am_df_pair[0].setDistanceFunction(am_df_pair[1])
         
         # for each method: first train models on known docs
         am_df_pair[0].train(known_docs)
         # then for each unknown document, analyze and output results
         
-
-
         am_df = list(params["AnalysisMethods"].get_children())
         am_df = [params["AnalysisMethods"].item(j)["values"] for j in am_df]
         for d in unknown_docs:
@@ -663,7 +707,7 @@ def process(params: dict,
     #results_display.config(state = DISABLED)
 
     results_scrollbar = Scrollbar(process_window,
-                                  width = scrollbar_width,
+                                  width = dpi_scrollbar_width,
                                   command = results_display.yview)
     results_display.config(yscrollcommand = results_scrollbar.set)
     results_scrollbar.pack(side = LEFT, fill = BOTH)
@@ -723,7 +767,7 @@ def notepad():
         notepad_window_textfield = Text(notepad_window)
         notepad_window_textfield.insert("1.0", str(notes_content))
         notepad_window_save_button = Button(notepad_window, text = "Save & Close",\
-            command = lambda:Notepad_Save(
+            command = lambda:notepad_Save(
                 notepad_window_textfield.get("1.0", "end-1c"),
                 notepad_window))
         notepad_window_textfield.pack(padx = 7, pady = 7, expand = True, fill = BOTH)
@@ -732,7 +776,7 @@ def notepad():
         notepad_window.mainloop()
     return None
 
-def Notepad_Save(text, window):
+def notepad_Save(text, window):
     """
     saves the contents displayed in the notepad textfield
     when the button is pressed
@@ -740,72 +784,75 @@ def Notepad_Save(text, window):
     global notes_content
     notes_content = text
     window.destroy()
-    if GUI_debug >= 3: print("Notepad_Save()")
+    if GUI_debug >= 3: print("notepad_Save()")
     return None
 
 def switch_tabs(notebook, mode, tabID = 0):
     """
     Switch tabs from the buttons "Previous", "Next",  and "Finish & Review"
     """
+    # contains hard-coded limits of tabIDs.
     if GUI_debug >= 3: print("switch_tabs(mode = %s)" %(mode))
     if mode == "next":
-        try:
-            notebook.select(notebook.index(notebook.select()) + 1)
-        except:
-            return
+        notebook.select(min((notebook.index(notebook.select()) + 1), 5))
     elif mode == "previous":
-        try:
-            notebook.select(notebook.index(notebook.select())-1)
-        except:
-            return
+        notebook.select(max((notebook.index(notebook.select()) - 1), 0))
     elif mode == "choose":
-        try:
+        if tabID >= 0 and tabID <= 5:
             notebook.select(tabID)
-        except:
-            return
     return
 
-def addFile(window_title, listbox_operate, allow_duplicates, lift_window = None):
+def file_add_remove(window_title, listbox_operate: Listbox, allow_duplicates: bool, function: str, lift_window = None):
     """Universal add file function to bring up the explorer window"""
-    #window_title is the title of the window, may change depending on what kind of files are added
-    #listbox_operate is the listbox object to operate on
-    #allow_duplicates is whether the listbox allows duplicates.
-    #if listbox does not allow duplicates, item won't be added to the listbox and this prints a message to the terminal.
-    #lift_window is the window to go back to focus when the file browser closes
-    if GUI_debug >= 1: print("addFile")
-    elif GUI_debug >= 3: print("addFile(allow_duplicates = %s)", allow_duplicates)
-    filename = askopenfilename(
-        filetypes = (("Text File", "*.txt"), ("All Files", "*.*")),
-        title = window_title, multiple = True
+    # window_title is the title of the window,
+    # may change depending on what kind of files are added
+    # listbox_operate is the listbox object to operate on
+    # allow_duplicates is whether the listbox allows duplicates.
+    # if listbox does not allow duplicates,
+    # item won't be added to the listbox and this prints a message to the terminal.
+    # lift_window is the window to go back to focus when the file browser closes
+    if GUI_debug >= 1: print("file_add_remove")
+    elif GUI_debug >= 3: print("file_add_remove(allow_duplicates = %s)", allow_duplicates)
+    if function == "add":
+        filename = askopenfilename(
+            filetypes = (("Text File", "*.txt"), ("All Files", "*.*")),
+            title = window_title, multiple = True
         )
-    if lift_window != None:
-        lift_window.lift(topwindow)
-    if allow_duplicates and filename != "" and len(filename) > 0:
-        listbox_operate.insert(END, filename)
-    else:
-        for fileinlist in listbox_operate.get(0, END):
-            if fileinlist == filename:
-                status_update("File already in list.")
-                if GUI_debug > 0:
-                    print("Add document: file already in list")
-                lift_window.lift()
-                return None
-        if filename != None and filename != "" and len(filename) > 0:
-            for file in filename:
-                listbox_operate.insert(END, file)
+        if lift_window != None:
+            lift_window.lift(topwindow)
+        if allow_duplicates and filename != "" and len(filename) > 0:
+            listbox_operate.insert(END, filename)
+        else:
+            for fileinlist in listbox_operate.get(0, END):
+                if fileinlist == filename:
+                    status_update("File already in list.")
+                    if GUI_debug > 0:
+                        print("Add document: file already in list")
+                    lift_window.lift()
+                    return None
+            if filename != None and filename != "" and len(filename) > 0:
+                for file in filename:
+                    listbox_operate.insert(END, file)
 
-    if lift_window != None:
-        lift_window.lift()
-    return None
+        if lift_window != None:
+            lift_window.lift()
+        return
+    elif function == "remove":
+        try:
+            listbox_operate.delete(listbox_operate.curselection())
+            status_update()
+        except TclError:
+            status_update("Nothing selected")
+            return
 
 known_authors = []
 # known_authors list format:
 #   [
-#   [author, [file-directory, file-directory]],
-#   [author, [file-directory, file directory]]
+#       [author, [file-directory, file-directory]],
+#       [author, [file-directory, file directory]]
 #   ]
 known_authors_list = []
-# this decides which in the 1-dimensionl listbox is the author...
+# this decides which in the 1-dimensionl listbox is the author...load_save
 #   and therefore can be deleted when using delete author
 # format: [0, -1, -1. -1, 1, -1, ..., 2, -1, ..., 3, -1, ...]
 #   -1 = not author; 
@@ -818,7 +865,7 @@ def authors_list_updater(listbox):
     listbox.delete(0, END)
     if GUI_debug >= 3: print("authors_list_updater()")
     known_authors_list = []
-    for author_list_index in range(len(known_authors)):#Authors
+    for author_list_index in range(len(known_authors)):
         listbox.insert(END, known_authors[author_list_index][0])
         listbox.itemconfig(END, 
             background = styles[style_choice]["accent_color_light"],
@@ -850,11 +897,14 @@ def author_save(window, listbox, author, documents_list, mode):
                 and (documents_list != None \
                 and len(documents_list) != 0):  
             author_index = 0
-            while author_index<len(known_authors):#check if author already exists
-                if known_authors[author_index][0] == author:#when author is already in the list, merge.
+            while author_index<len(known_authors):
+                #check if author already exists
+                if known_authors[author_index][0] == author:
+                    #when author is already in the list, merge.
                     known_authors[author_index][1] = \
                         known_authors[author_index][1] \
-                        + list([doc for doc in documents_list if doc not in known_authors[author_index][1]])
+                        + list([doc for doc in documents_list
+                            if doc not in known_authors[author_index][1]])
                     authors_list_updater(listbox)
                     window.destroy()
                     return None
@@ -985,7 +1035,7 @@ def authorsList(authorList, mode):
     author_buttons_frame = Frame(author_window)
     
     author_add_doc_button = Button(author_buttons_frame, text = "Add Document",\
-        command = lambda:addFile("Add Document For Author", author_listbox, False, author_window))
+        command = lambda:file_add_remove("Add Document For Author", author_listbox, False, "add", author_window))
     author_add_doc_button.grid(row = 0, column = 0)
     author_remove_doc_button = Button(author_buttons_frame, text = "Remove Document",\
         command = lambda:select_modules(None, [author_listbox], 'remove'))
@@ -1020,26 +1070,95 @@ def authorsList(authorList, mode):
     author_window.mainloop()
     return None
 
-#ABOVE ARE UTILITY FUNCTIONS
-menubar = Menu(topwindow)#adds top menu bar
+
+def reload_modules_button(frame: Frame, button_shown: list, button: Button = None):
+    """Hides or shows the reload modules button."""
+    # function: "hide" or "show"
+    if button_shown == []:
+        show_button = \
+            Button(frame,
+                    text = "Reload modules",
+                    height = 2,
+                    command=todofunc
+            )
+        show_button.pack(pady=100)
+        button_shown.append(show_button)
+        return
+    else:
+        button_shown[0].destroy()
+        button_shown.clear()
+
+def load_save_docs(function: str,
+                         unknown_docs_listbox: Listbox,
+                         known_docs_listbox: Listbox):
+    if function == "load":
+        filename = askopenfilename(
+            filetypes = (("Comma-separated values", "*.csv"), ("All files", "*.*")),
+            title = "Load corpus specifications",
+            multiple = False
+        )
+        # TODO 4 priority high:
+        # implement loading from/saving experiments to csvs.
+        if len(filename) == 0:
+            return
+        files_list = readCorpusCSV(filename[0])
+        backend_API.documents = []
+        for file in files_list:
+            if file[0] == "":
+                # unknown author
+                unknown_docs_listbox.insert(END, file[1])
+            else:
+                ...
+    elif function == "save":
+        raise NotImplementedError
+        filename = asksaveasfilename(
+            filetypes = (("Comma-separated values", "*.csv"), ("All files", "*.*")),
+            title = "Save corpus specifications"
+        )
+
+def load_AAAC_problems(problem: str):
+
+    # problem expects a letter string, ex: "A", "B", etc.
+
+
+    ...
+
+menubar = Menu(topwindow)
 menu_file = Menu(menubar, tearoff = 0)
+
+Tab_Documents_UnknownAuthors_listbox = None
+Tab_Documents_KnownAuthors_listbox = None
 
 #tkinter menu building goes from bottom to top / leaves to root
 menu_batch_documents = Menu(menu_file, tearoff = 0)#batch documents menu
 menu_batch_documents.add_command(
-    label = "Save Documents [under construction]", command = todofunc
+    label = "Save Documents",
+    command = lambda function = "save":
+    load_save_docs(
+        function,
+        Tab_Documents_UnknownAuthors_listbox,
+        Tab_Documents_KnownAuthors_listbox
+    )
 )
 menu_batch_documents.add_command(
-    label = "Load Documents [under construction]", command = todofunc
+    label="Load Documents",
+    command=lambda function = "load":
+        load_save_docs(
+            function,
+            Tab_Documents_UnknownAuthors_listbox,
+            Tab_Documents_KnownAuthors_listbox
+        )
 )
 menu_file.add_cascade(
-    label = "Batch Documents [under construction]", menu = menu_batch_documents, underline = 0
+    label = "Batch Documents ***", menu = menu_batch_documents,
+    underline = 0
 )
 
-menu_AAAC_problems = Menu(menu_file, tearoff = 0)#problems menu
+menu_AAAC_problems = Menu(menu_file, tearoff = 0)
 menu_AAAC_problems.add_command(label = "Problem 1", command = todofunc)
 menu_file.add_cascade(
-    label = "AAAC Problems [under construction]", menu = menu_AAAC_problems, underline = 0
+    label = "AAAC Problems ***", menu = menu_AAAC_problems,
+    underline = 0
 )
 
 menu_file.add_separator()#file menu
@@ -1145,7 +1264,7 @@ Tab_RP_Canonicizers_Button.excludestyle = True
 Tab_RP_Canonicizers_Listbox = Listbox(Tab_ReviewProcess_Canonicizers)
 Tab_RP_Canonicizers_Listbox.pack(side = LEFT, expand = True, fill = BOTH)
 Tab_RP_Canonicizers_Listbox_scrollbar = Scrollbar(
-    Tab_ReviewProcess_Canonicizers, width = scrollbar_width,
+    Tab_ReviewProcess_Canonicizers, width = dpi_scrollbar_width,
     command = Tab_RP_Canonicizers_Listbox.yview)
 Tab_RP_Canonicizers_Listbox_scrollbar.pack(side = RIGHT, fill = BOTH)
 Tab_RP_Canonicizers_Listbox.config(yscrollcommand = Tab_RP_Canonicizers_Listbox_scrollbar.set)
@@ -1159,7 +1278,7 @@ Tab_RP_EventDrivers_Button.excludestyle = True
 Tab_RP_EventDrivers_Listbox = Listbox(Tab_ReviewProcess_EventDrivers)
 Tab_RP_EventDrivers_Listbox.pack(side = LEFT, expand = True, fill = BOTH)
 Tab_RP_EventDrivers_Listbox_scrollbar = Scrollbar(
-    Tab_ReviewProcess_EventDrivers,  width = scrollbar_width, 
+    Tab_ReviewProcess_EventDrivers,  width = dpi_scrollbar_width, 
     command = Tab_RP_EventDrivers_Listbox.yview)
 Tab_RP_EventDrivers_Listbox_scrollbar.pack(side = RIGHT, fill = BOTH)
 Tab_RP_EventDrivers_Listbox.config(yscrollcommand = Tab_RP_EventDrivers_Listbox_scrollbar.set)
@@ -1172,7 +1291,7 @@ Tab_RP_EventCulling_Button.excludestyle = True
 Tab_RP_EventCulling_Listbox = Listbox(Tab_ReviewProcess_EventCulling)
 Tab_RP_EventCulling_Listbox.pack(side = LEFT, expand = True, fill = BOTH)
 Tab_RP_EventCulling_Listbox_scrollbar = Scrollbar(
-    Tab_ReviewProcess_EventCulling, width = scrollbar_width,
+    Tab_ReviewProcess_EventCulling, width = dpi_scrollbar_width,
     command = Tab_RP_EventCulling_Listbox.yview)
 Tab_RP_EventCulling_Listbox_scrollbar.pack(side = RIGHT, fill = BOTH)
 Tab_RP_EventCulling_Listbox.config(yscrollcommand = Tab_RP_EventCulling_Listbox_scrollbar.set)
@@ -1190,7 +1309,7 @@ Tab_RP_AnalysisMethods_Listbox.heading("DF", text = "Distance", anchor = W)
 Tab_RP_AnalysisMethods_Listbox.pack(side = LEFT, expand = True, fill = BOTH)
 Tab_RP_AnalysisMethods_Listbox_scrollbar = Scrollbar(
     Tab_ReviewProcess_AnalysisMethods,
-    width = scrollbar_width,
+    width = dpi_scrollbar_width,
     command = Tab_RP_AnalysisMethods_Listbox.yview)
 Tab_RP_AnalysisMethods_Listbox_scrollbar.pack(side = RIGHT, fill = BOTH)
 Tab_RP_AnalysisMethods_Listbox.config(yscrollcommand = Tab_RP_AnalysisMethods_Listbox_scrollbar.set)
@@ -1203,7 +1322,7 @@ Tab_RP_Process_Button.grid(row = 2, column = 0, columnspan = 3, sticky = "se", p
 Tab_RP_Process_Button.bind("<Map>",
     lambda event, a = [], lb = [Tab_RP_EventDrivers_Listbox, Tab_RP_AnalysisMethods_Listbox],
     labels = [Tab_RP_EventDrivers_Button, Tab_RP_AnalysisMethods_Button],
-    button = Tab_RP_Process_Button:process("", lb, labels, button))
+    button = Tab_RP_Process_Button:run_experiment("", lb, labels, button))
 
 
 
@@ -1223,6 +1342,9 @@ for n in range(10):
     else: w = 0
     Tabs_Frames["Tab_Documents"].rowconfigure(n, weight = w)
 
+
+# !!! to allow for per-document language settings,
+# also change the spacy (canonicizer) module's langauge module loading functions.
 #documents-language selection
 analysisLanguage = StringVar()
 analysisLanguage.set("English")
@@ -1231,9 +1353,14 @@ analysisLanguageOptions = ["Arabic (ISO-8859-6)", "Chinese (GB2123)", "English"]
 Tab_Documents_language_dropdown = OptionMenu(
     Tabs_Frames["Tab_Documents"], analysisLanguage, *analysisLanguageOptions
 )
+Tab_Documents_language_dropdown.config(width = dpi_language_dropdown_width)
 Tab_Documents_language_dropdown['anchor'] = 'nw'
 Tab_Documents_language_dropdown.grid(row = 2, column = 0, sticky = 'NW')
 
+
+analysisLanguage.trace_add("write",
+                    lambda v1, v2, v3, p = "language", stringvar = analysisLanguage:
+                    set_API_global_parameters(p, stringvar))
 
 
 #documents-unknown authors
@@ -1250,7 +1377,7 @@ Tab_Documents_UnknownAuthors_Frame.grid(row = 5, column = 0, sticky = "wnse")
 Tab_Documents_UnknownAuthors_listbox =\
     Listbox(Tab_Documents_UnknownAuthors_Frame, width = "100")
 Tab_Documents_UnknownAuthors_listscrollbar =\
-    Scrollbar(Tab_Documents_UnknownAuthors_Frame, width = scrollbar_width)
+    Scrollbar(Tab_Documents_UnknownAuthors_Frame, width = dpi_scrollbar_width)
 #loop below: to be removed
 
 Tab_Documents_UnknownAuthors_listbox.config(
@@ -1268,13 +1395,13 @@ Tab_Documents_doc_buttons = Frame(Tabs_Frames["Tab_Documents"])
 Tab_Documents_doc_buttons.grid(row = 6, column = 0, sticky = "W")
 Tab_Documents_UnknownAuthors_AddDoc_Button = Button(
     Tab_Documents_doc_buttons, text = "Add Document", width = "16",
-    command = lambda:addFile(
-        "Add a document to Unknown Authors", Tab_Documents_UnknownAuthors_listbox, False)
+    command = lambda:file_add_remove(
+        "Add a document to Unknown Authors", Tab_Documents_UnknownAuthors_listbox, False, "add")
     )
 Tab_Documents_UnknownAuthors_RmvDoc_Button = Button(
     Tab_Documents_doc_buttons, text = "Remove Document", width = "16",
-    command = lambda:select_modules(
-        None, [Tab_Documents_UnknownAuthors_listbox], "remove")
+    command = lambda:file_add_remove(
+        None, Tab_Documents_UnknownAuthors_listbox, False, "remove")
     )
 
 Tab_Documents_UnknownAuthors_AddDoc_Button.grid(row = 1, column = 1, sticky = "W")
@@ -1292,7 +1419,7 @@ Tab_Documents_KnownAuthors_Frame.grid(row = 8, column = 0, sticky = "wnse")
 
 
 Tab_Documents_KnownAuthors_listbox = Listbox(Tab_Documents_KnownAuthors_Frame, width = "100")
-Tab_Documents_KnownAuthors_listscroller = Scrollbar(Tab_Documents_KnownAuthors_Frame, width = scrollbar_width)
+Tab_Documents_KnownAuthors_listscroller = Scrollbar(Tab_Documents_KnownAuthors_Frame, width = dpi_scrollbar_width)
 
 Tab_Documents_KnownAuthors_listbox.config(
     yscrollcommand = Tab_Documents_KnownAuthors_listscroller.set
@@ -1332,7 +1459,7 @@ selected_parameters = {"known_authors": known_authors,
 Tab_RP_Process_Button.config(\
     command = lambda lb = [Tab_RP_EventDrivers_Listbox, Tab_RP_AnalysisMethods_Listbox],\
         labels = [Tab_RP_EventDrivers_Button, Tab_RP_AnalysisMethods_Button],\
-            button = Tab_RP_Process_Button:process(selected_parameters, lb, labels, button, True))
+            button = Tab_RP_Process_Button:run_experiment(selected_parameters, lb, labels, button, True))
 
 
 
@@ -1350,7 +1477,7 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
     """
     assert len(set(available_content)) == len(available_content), \
         "Bug: create_modules_tab: available_content can't have repeated names."
-    global scrollbar_width
+    global dpi_scrollbar_width
 
     # Layer 0
     objects = dict() # objects in the frame
@@ -1373,9 +1500,8 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
     objects["selected_frame"] = Frame(objects["top_frame"])
     objects["selected_frame"].place(relx = 0.4, rely = 0, relwidth = 0.3, relheight = 1)
 
-    if parameters_content != "Canonicizers":
-        objects["parameters_frame"] = Frame(objects["top_frame"])
-        objects["parameters_frame"].place(relx = 0.7, rely = 0, relwidth = 0.3, relheight = 1)
+    objects["parameters_frame"] = Frame(objects["top_frame"])
+    objects["parameters_frame"].place(relx = 0.7, rely = 0, relwidth = 0.3, relheight = 1)
 
     objects["description_frame"] = Frame(tab_frame)
     objects["description_frame"].place(relx = 0, rely = topheight, relheight = bottomheight, relwidth = 1)
@@ -1410,7 +1536,7 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
 
         objects["available_listboxes"][-1].append(
             Scrollbar(objects["available_listboxes"][-1][0],
-            width = scrollbar_width, command = objects["available_listboxes"][-1][2].yview)
+            width = dpi_scrollbar_width, command = objects["available_listboxes"][-1][2].yview)
         )
         objects["available_listboxes"][-1][3].pack(side = RIGHT, fill = BOTH)
         objects["available_listboxes"][-1][2].config(
@@ -1439,7 +1565,7 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
         objects["selected_listboxes"][-1][2].pack(expand = True, fill = BOTH, side = LEFT)
 
         objects["selected_listboxes"][-1].append(
-            Scrollbar(objects["selected_listboxes"][-1][0], width = scrollbar_width,
+            Scrollbar(objects["selected_listboxes"][-1][0], width = dpi_scrollbar_width,
             command = objects["selected_listboxes"][-1][2].yview))
         objects["selected_listboxes"][-1][3].pack(side = RIGHT, fill = BOTH)
         objects["selected_listboxes"][-1][2].config(yscrollcommand = objects["selected_listboxes"][-1][3].set)
@@ -1449,7 +1575,7 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
         objects["selected_listboxes"][-1][2].pack(expand = True, fill = BOTH, side = LEFT)
 
         objects["selected_listboxes"][-1].append(
-            Scrollbar(objects["selected_listboxes"][-1][0], width = scrollbar_width,
+            Scrollbar(objects["selected_listboxes"][-1][0], width = dpi_scrollbar_width,
             command = objects["selected_listboxes"][-1][2].yview))
         objects["selected_listboxes"][-1][3].pack(side = RIGHT, fill = BOTH)
         objects["selected_listboxes"][-1][2].config(yscrollcommand = objects["selected_listboxes"][-1][3].set)
@@ -1461,9 +1587,10 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
     if parameters_content == "Canonicizers":
         extra.get("canonicizers_format")
         extra.get("canonicizers_format").set("All")
-        CanonicizerFormatOptions = ["All", "Generic", "Doc", "PDF", "HTML"]
+        canonicizer_format_options = ["All", "Generic", "Doc", "PDF", "HTML"]
         objects["Canonicizers_format"] = OptionMenu(objects["buttons_frame"],
-            extra.get("canonicizers_format"), *CanonicizerFormatOptions)
+            extra.get("canonicizers_format"), *canonicizer_format_options)
+        objects["Canonicizers_format"].config(width = dpi_option_menu_width)
         objects["Canonicizers_format"].pack(anchor = W)
         counter = 1
     
@@ -1510,11 +1637,12 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
     )
     objects["description_label"].pack(anchor = NW, pady = (20, 5))
     objects["description_box"] = Text(
-        objects["description_frame"], bd = 5, relief = "groove", bg = topwindow.cget("background"), state = DISABLED
+        objects["description_frame"], bd = dpi_description_box_border,
+        relief = "groove", bg = topwindow.cget("background"), state = DISABLED
     )
     objects["description_box"].pack(fill = BOTH, expand = True, side = LEFT)
     objects["description_box_scrollbar"] = Scrollbar(
-        objects["description_frame"], width = scrollbar_width, command = objects["description_box"].yview
+        objects["description_frame"], width = dpi_scrollbar_width, command = objects["description_box"].yview
     )
     objects["description_box"].config(yscrollcommand = objects["description_box_scrollbar"].set)
     objects["description_box_scrollbar"].pack(side = LEFT, fill = BOTH)
@@ -1663,6 +1791,15 @@ for culling in sorted(list(backend_API.eventCulling.keys())):
 for method in sorted(list(backend_API.analysisMethods.keys())):
     generated_widgets["AnalysisMethods"]["available_listboxes"][0][2].insert(END, method)
 #######
+
+# reload_button_shown=[]
+# topwindow.bind_all(
+#     "<Control_L>",
+#     lambda event,
+#         fr=generated_widgets["Canonicizers"]["parameters_frame"],
+#         b=reload_button_shown:
+#     reload_modules_button(fr, b)
+# )
 
 if GUI_debug >= 2:
     _ = 0

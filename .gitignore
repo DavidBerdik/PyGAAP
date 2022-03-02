@@ -4,3 +4,4 @@
 # Ignore the tmp directory (experiment outputs are stored in it)
 /tmp
 launchpygaap.sh
+multi_test.py

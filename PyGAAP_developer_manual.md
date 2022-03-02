@@ -46,7 +46,7 @@ topwindow                                    name of main window (Tk)
 │   │   │   │   ├── ["available_frame"]                Contains the listboxes where available features are displayed.
 │   │   │   │   ├── ["buttons_frame"]                  Contains the add/remove/clear buttons.
 │   │   │   │   ├── ["selected_frame"]                 Contains the listbox where selected features are displayed.
-│   │   │   │   ├── ["parameters_frame"]               Contains the frame where parameters of a feature are displayed. # Tab_EventDrivers and Tab_AnalysisMethods only.
+│   │   │   │   ├── ["parameters_frame"]               Contains the frame where parameters of a feature are displayed.
 │   │   │   |
 │   │   │   ├── ["description_frame"]                Contains the text box where the description of a feature is displayed.
 │   │   |
@@ -90,7 +90,7 @@ authorsList(.., mode)                                 #called when a button in [
 Each module is a class in or imported to the file containing modules of the same type. These types are canonicizers (```Canonicizer.py```), event drivers (```EventDriver.py```), event cullers (```EventCulling.py```), analysis methods (```AnalysisMethod.py```), and distance functions (```DistanceFunction.py```). Add package dependencies and their version numbers to ```./requirements.txt```, if applicable.
 
 ## <span style="color:#aaeeff">Class variables</span> <a name="class_variables"></a>
-Class variables are decleared within the class definition.
+Class variables are declared within the class definition.
 
 ### <span style="color:#aaeeff">User parameters for Event Drivers, Event Culling and Analysis Methods
 Each user parameter is a class variable exposed to the GUI. These variables must also have corresponding entries in ```_variable_options```, and their names cannot begin with a "```_```".
@@ -103,6 +103,7 @@ Example:
 
 ### <span style="color:#aaeeff">Class variables for Analysis Methods
 - ```_NoDistanceFunction_``` (boolean) if an anlysis method does not allow a distance function to be set, add this and set it to ```True```. It's okay to omit this variable if it would be set to ```False```.
+- ```_multiprocessing_score``` (integer) the "time-consumingness" of an analysis method. Default is 1 (or if omitted). The score for all analysis methods will be summed before processing to determine if multi-processing is needed. Set a higher score if a method usually takes particularly long.
 
 ## <span style="color:#aaeeff"> Class functions</span> <a name="class_functions"></a>
 - All modules are required to have ```displayName()``` and ```displayDescription()```.

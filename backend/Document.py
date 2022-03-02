@@ -3,7 +3,7 @@ class Document:
 	author = ""
 	title = ""
 	text = ""
-	eventSet = None
+	eventSet = []
 	filepath = ""
 	
 	def __init__(self, author, title, text, filepath):
@@ -13,6 +13,10 @@ class Document:
 		self.text = text
 		self.filepath = filepath
 		
-	def setEventSet(self, eventSet):
+	def setEventSet(self, eventSet, **options):
 		'''Sets the eventSet list value.'''
-		self.eventSet = eventSet
+		append = options.get("append", False)
+		if not append:
+			self.eventSet = eventSet
+		else:
+			self.eventSet += eventSet

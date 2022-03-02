@@ -29,5 +29,5 @@ def readDocument(documentPath):
 	'''Returns the contents of the document at the specified path.'''
 	try:
 		return pathlib.Path(documentPath).read_text()
-	except:
+	except UnicodeError:
 		return pathlib.Path(documentPath).read_text(encoding="UTF-8")

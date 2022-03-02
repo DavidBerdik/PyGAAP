@@ -6,6 +6,7 @@ import backend.Histograms as histograms
 class AnalysisMethod(ABC):
 	distance = None
 	_variable_options = dict()
+	_global_parameters = dict()
 	
 	def __init__(self):
 		try:
@@ -13,6 +14,7 @@ class AnalysisMethod(ABC):
 				setattr(self, variable, self._variable_options[variable]["options"][self._variable_options[variable]["default"]])
 		except:
 			self._variable_options = dict()	
+		self._global_parameters = self._global_parameters
 	@abstractmethod
 	def train(self, knownDocuments):
 		'''Train a model on the knownDocuments.'''
@@ -63,6 +65,7 @@ class CrossEntropy(AnalysisMethod):
 	_histograms = None
 	_histogramsNp = None
 	_variable_options = {"mode": {"default": 0, "type": "OptionMenu", "options": ["author", "document"]}}
+	_multiprocessing_score = 1
 
 	def train(self, knownDocuments):
 		if self.mode == "author":
