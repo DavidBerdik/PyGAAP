@@ -1,2 +1,2 @@
 # PyGAAP constants
-versiondate="2022.02.11"
+versiondate="2022.03.02"

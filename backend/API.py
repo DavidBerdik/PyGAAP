@@ -44,6 +44,12 @@ class API:
 		"DistanceFunctions": []
 	}
 
+	global_parameters = {"language": None}
+	# TODO priority low:
+	# allow modules to pass info along the pipeline:
+	# e.g. if an event culler requires information on the text
+	# before it was converted to the feature set.
+
 	
 	def __init__(self, documents):
 		'''Build dictionaries of all the different parameters we can choose from.'''
@@ -69,6 +75,9 @@ class API:
 			
 		# Set a list of documents for processing.
 		self.documents = documents
+
+		self.global_parameters = self.global_parameters
+
 		
 	def runCanonicizer(self, canonicizerString):
 		'''Runs the canonicizer specified by the string against all documents.'''
@@ -137,3 +146,8 @@ class API:
 		params = []
 		[params.append(int(param.split(':')[1])) for param in eventDriverString]
 		return params
+
+	def set_global_parameters(self, parameter: str, string: str):
+		"""Sets parameters to be used for all modules."""
+		self.global_parameters[parameter] = string
+		return

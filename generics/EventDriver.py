@@ -3,8 +3,13 @@ from matplotlib.pyplot import eventplot
 from nltk import ngrams
 from nltk.tokenize import word_tokenize, sent_tokenize
 
+if "spacy" not in dir():
+	import spacy
+
 # An abstract EventDriver class.
 class EventDriver(ABC):
+
+	_global_parameters = dict()
 
 	def __init__(self):
 		try:
@@ -12,6 +17,7 @@ class EventDriver(ABC):
 				setattr(self, variable, self._variable_options[variable]["options"][self._variable_options[variable]["default"]])
 		except:
 			self._variable_options = dict()
+		self._global_parameters = self._global_parameters
 
 	@abstractmethod
 	def displayName():
@@ -110,7 +116,7 @@ class SentenceEventDriver(EventDriver):
 class CharacterPositionEventDriver(EventDriver):
 	'''Event Driver for letter positions. Only used on texts with delimited words (after canonicization).'''
 
-	delimiter="<whitespace(s)>"
+	delimiter = "<whitespace(s)>"
 	_variable_options = {"delimiter":
 		{
 			"options": ["<whitespace(s)>", ", (comma)", ". (period)", "; (semicolon)"],
@@ -118,7 +124,6 @@ class CharacterPositionEventDriver(EventDriver):
 			"default": 0
 		}
 	}
-	_variable_GUItype = {"delimiter": "OptionMenu"}
 
 	def createEventSet(self, procText):
 
@@ -141,3 +146,83 @@ class CharacterPositionEventDriver(EventDriver):
 
 	def displayDescription():
 		return "Converts delimited words into list of letters with their positions within the word.\nRecommended with the Cangjie canonicizer"
+
+
+class WithinWordNGram(EventDriver):
+	n = 2
+	delimiter = "<whitespace(s)>"
+	_variable_options = {
+		"delimiter":
+		{
+			"options": ["<whitespace(s)>", ", (comma)", ". (period)", "; (semicolon)"],
+			"type": "OptionMenu",
+			"default": 0
+		},
+		"n":
+		{
+			"options": list(range(4)),
+			"type": "OptionMenu",
+			"default": 0
+		}
+	}
+	
+	def displayName():
+		return "Within-word n-gram [under construction]"
+
+	def displayDescription():
+		return "Lists the n-gram of letter sequences within a word."
+
+
+
+	def createEventSet(self, procText):
+
+		eventSet = []
+		if self.delimiter == "<whitespace(s)>":
+			splitText = procText.split()
+		else:
+			splitText = procText.split(self.delimiter[0])
+
+		for word in splitText:
+			eventSet += [str(word[letterIndex] + "_" + str(letterIndex)) for letterIndex in range(len(word))]
+		return eventSet
+	
+class SpacyLemmatize(EventDriver):
+# class var.
+	_SpacyLemmatize_module_dict = {
+		"English": "en_core_web_sm",
+		"Chinese (GB2123)": "zh_core_web_sm",
+		"Japanese": "ja_core_news_sm",
+		# see https://spacy.io/usage/models
+		# for language module names.
+	}
+	# class var.
+	_SpacyLemmatize_lang_pipeline = None
+
+	def __init__(self):
+		# if "spacy" not in dir():
+		# 	import spacy
+		return
+		
+	def displayName():
+		return "Lemmatize (Spacy)"
+
+	def displayDescription():
+		return "Lemmatize words using the Spacy module."
+	
+	def process(self, procText):
+		"""Lemmatize using spacy"""
+
+		if EventDriver._spacy_lang_pipeline == None:
+			EventDriver._spacy_lang_pipeline = spacy.load(
+				self._SpacyLemmatize_module_dict.get(
+					self._global_parameters["language"],
+					"xx_ent_wiki_sm"
+				)
+			)
+		lem = [
+			token.lemma_ for
+			token in
+			EventDriver._spacy_lang_pipeline(procText)
+		]
+		#print(lem)
+		return lem
