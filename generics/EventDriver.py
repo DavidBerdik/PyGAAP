@@ -209,7 +209,12 @@ class SpacyLemmatize(EventDriver):
 	def displayDescription():
 		return "Lemmatize words using the Spacy module."
 	
-	def process(self, procText):
+		
+	def setParams(self, params):
+		'''Accepts a list of parameters and assigns them to the appropriate variables.'''
+
+	
+	def createEventSet(self, procText):
 		"""Lemmatize using spacy"""
 
 		if EventDriver._spacy_lang_pipeline == None:
