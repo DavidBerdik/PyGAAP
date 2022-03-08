@@ -17,11 +17,17 @@ GUI_debug = 0
 #   info printed to the terminal.
 
 from copy import deepcopy
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Pipe
 from datetime import datetime
 from tkinter import *
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
+import multiprocess_loading
+
+pipe_from, pipe_to = Pipe(duplex=True)
+p = Process(target=multiprocess_loading.splash, args=(pipe_to,))
+p.start()
+pipe_from.send("Loading API")
 
 # LOCAL IMPORTS
 from backend.API import API
@@ -30,8 +36,6 @@ from backend.Document import Document
 from backend import CSVIO
 import constants
 from generics.DistanceFunction import DistanceFunction
-from util import ModuleParameters
-
 # Top-level window.
 topwindow = Tk()
 
@@ -141,6 +145,8 @@ backend_API = API("place-holder")
 ###############################
 ###############################
 
+pipe_from.send("Loading functions")
+
 # Functions called by user interaction with the GUI.
 def todofunc():
     """Place-holder function for not-yet implemented features."""
@@ -199,6 +205,8 @@ def select_modules(listbox_available: Listbox,
                 listbox_member.delete(*listbox_member.get_children())
         module_type = options.get("module_type")
         backend_API.modulesInUse[module_type].clear()
+        if module_type == "AnalysisMethods":
+            backend_API.modulesInUse["DistanceFunctions"].clear()
         return None
 
     elif function == "remove":
@@ -264,8 +272,6 @@ def select_modules(listbox_available: Listbox,
             status_update("Nothing selected or missing selection.")
             if GUI_debug > 0: print("add to list: nothing selected")
             return None
-        # except:
-        #     status_update("Error: Module retrieval failed.")
 
         for listbox_member in Listbox_operate:
             if type(Listbox_operate[0]) == Listbox:
@@ -316,7 +322,7 @@ def find_description(desc: Text,
             name = listbox.get(listbox.curselection())
             description_string = name + ":\n" \
                                       + API_dict[name].displayDescription()
-        except:
+        except (TypeError, TclError):
             description_string = "No description"
 
     elif type(listbox) == ttk.Treeview:
@@ -327,9 +333,9 @@ def find_description(desc: Text,
             df_name = listbox.item(listbox.selection())["values"][1]
             am_d, df_d = "No description", "No description"
             try: am_d = backend_API.analysisMethods[am_name].displayDescription()
-            except: pass
+            except (TypeError, KeyError): pass
             try: df_d = backend_API.analysisMethods[df_name].displayDescription()
-            except: pass
+            except (TypeError, KeyError): pass
             if df_name == "NA": df_d = "Not applicable"
             description_string = am_name + ":\n" + am_d + "\n\n" + df_name + ":\n" + df_d
 
@@ -352,7 +358,7 @@ def set_parameters(stringvar, module, variable_name):
         # if value is a number, try converting to a number.
         if abs(int(value_to) - value_to) < 0.0000001:
             value_to = int(value_to)
-    except:
+    except ValueError:
         pass
     setattr(module, variable_name, value_to)
     return None
@@ -542,7 +548,7 @@ def run_pre_processing(backend_API, doc: Document, dump_queue = None):
     else:
         return doc
 
-process_window = None
+results_window = None
 def run_experiment(params: dict,
             check_listboxes: list,
             check_labels: list,
@@ -564,7 +570,7 @@ def run_experiment(params: dict,
     process_button.config(state = NORMAL, text = "Process", )
     for lb_index in range(len(check_listboxes)):
         try: size = len(check_listboxes[lb_index].get_children())
-        except: size = check_listboxes[lb_index].size()
+        except AttributeError: size = check_listboxes[lb_index].size()
         if size == 0:
             check_labels[lb_index].config(
                 fg = "#e24444",
@@ -584,28 +590,8 @@ def run_experiment(params: dict,
 
 
     unknownAuthors = params["UnknownAuthors"].get(0, END)
-    
-    
-    global process_window
-
-    process_window = Toplevel()
-    process_window.title("Process Window")
-    process_window.geometry(dpi_process_window_geometry)
-    progressbar = ttk.Progressbar(
-        process_window,
-        length = dpi_progress_bar_length,
-        mode = "indeterminate"
-    )
-    
-    progressbar.pack(anchor = CENTER, pady = 40)
-    process_window.bind("<Destroy>", lambda event, b = "":status_update(b))
-    process_window.grab_set()
-    progressbar.start()
 
     # LOADING DOCUMENTS
-    process_message = Label(process_window, text = "Error loading documents")
-    process_message.pack()
-
     canonicizers_names = list(params["Canonicizers"].get(0, END))
     event_drivers_names = list(params["EventDrivers"].get(0, END))
     event_cullers_names = list(params["EventCulling"].get(0, END))
@@ -670,10 +656,9 @@ def run_experiment(params: dict,
     for am_df_index in range(len(backend_API.modulesInUse["AnalysisMethods"])):
         am_df_pair = (backend_API.modulesInUse["AnalysisMethods"][am_df_index],
                       backend_API.modulesInUse["DistanceFunctions"][am_df_index])
-        process_message.configure(text = "Error running " + str(am_df_pair[0]))
-
         am_df_pair[0]._global_parameters = backend_API.global_parameters
-        am_df_pair[1]._global_parameters = backend_API.global_parameters
+        if am_df_pair[1] != "NA":
+            am_df_pair[1]._global_parameters = backend_API.global_parameters
 
         am_df_pair[0].setDistanceFunction(am_df_pair[1])
         
@@ -693,29 +678,36 @@ def run_experiment(params: dict,
                                                 d,
                                                 doc_result)
             results.append(formatted_results)
-
+    
     results_text = ""
     for r in results:
         results_text += str(r + "\n")
+    
+    # show process results
+    global results_window
+    
+    results_window = Toplevel()
+    results_window.title("Results")
+    results_window.geometry(dpi_process_window_geometry)
+    
+    results_window.bind("<Destroy>", lambda event, b = "":status_update(b))
+
 
     # create space to display results, release focus of process window.
-    progressbar.destroy()
-    process_message.destroy()
-    results_display = Text(process_window)
+    results_display = Text(results_window)
     results_display.pack(fill = BOTH, expand = True, side = LEFT)
     results_display.insert(END, results_text)
     #results_display.config(state = DISABLED)
 
-    results_scrollbar = Scrollbar(process_window,
+    results_scrollbar = Scrollbar(results_window,
                                   width = dpi_scrollbar_width,
                                   command = results_display.yview)
     results_display.config(yscrollcommand = results_scrollbar.set)
     results_scrollbar.pack(side = LEFT, fill = BOTH)
-    process_window.geometry(dpi_process_window_geometry_finished)
-    process_window.title(str(datetime.now()))
-    process_window.grab_release()
+    results_window.geometry(dpi_process_window_geometry_finished)
+    results_window.title(str(datetime.now()))
 
-    change_style(process_window)
+    change_style(results_window)
 
     return None
 
@@ -728,7 +720,7 @@ def displayAbout():
     try:
         About_page.lift()
         return None
-    except:
+    except (NameError, AttributeError):
         pass
     About_page = Toplevel()
     About_page.title("About PyGAAP")
@@ -760,7 +752,7 @@ def notepad():
     if GUI_debug >= 3: print("notepad()")
     try:
         notepad_window.lift()
-    except:
+    except (NameError, AttributeError):
         notepad_window = Toplevel()
         notepad_window.title("Notes")
         #notepad_window.geometry("600x500")
@@ -962,10 +954,10 @@ def authorsList(authorList, mode):
                 print("edit author: select the author instead of the document")
                 return None
             else:
-                author_index = known_authors_list[selected]#gets the index in the 2D list
-                insert_author = known_authors[selected][0]#original author name
-                insert_docs = known_authors[selected][1]#original list of documents
-        except:
+                author_index = known_authors_list[selected] #gets the index in the 2D list
+                insert_author = known_authors[author_index][0] #original author name
+                insert_docs = known_authors[author_index][1] #original list of documents
+        except TclError:
             status_update("No author selected.")
             if GUI_debug > 0:
                 print("edit author: no author selected")
@@ -989,7 +981,7 @@ def authorsList(authorList, mode):
                         + known_authors[author_index + 1:]
                 authors_list_updater(authorList)
 
-        except:
+        except TclError:
             status_update("No author selected.")
             if GUI_debug > 0:
                 print("remove author: nothing selected")
@@ -1006,7 +998,8 @@ def authorsList(authorList, mode):
     try:
         author_window.lift()
         return None
-    except: pass
+    except (NameError, AttributeError, TclError):
+        pass
     
     author_window = Toplevel()
     author_window.grab_set()#Disables main window when the add/edit author window appears
@@ -1091,7 +1084,7 @@ def reload_modules_button(frame: Frame, button_shown: list, button: Button = Non
 def load_save_docs(function: str,
                          unknown_docs_listbox: Listbox,
                          known_docs_listbox: Listbox):
-    if function == "load":
+    if "load" in function:
         filename = askopenfilename(
             filetypes = (("Comma-separated values", "*.csv"), ("All files", "*.*")),
             title = "Load corpus specifications",
@@ -1102,12 +1095,14 @@ def load_save_docs(function: str,
         if len(filename) == 0:
             return
         files_list = readCorpusCSV(filename[0])
-        backend_API.documents = []
+        if "clear" in function:
+            backend_API.documents = []
         for file in files_list:
             if file[0] == "":
                 # unknown author
                 unknown_docs_listbox.insert(END, file[1])
             else:
+                # known author
                 ...
     elif function == "save":
         raise NotImplementedError
@@ -1122,6 +1117,9 @@ def load_AAAC_problems(problem: str):
 
 
     ...
+
+
+pipe_from.send("Loading GUI")
 
 menubar = Menu(topwindow)
 menu_file = Menu(menubar, tearoff = 0)
@@ -1143,6 +1141,15 @@ menu_batch_documents.add_command(
 menu_batch_documents.add_command(
     label="Load Documents",
     command=lambda function = "load":
+        load_save_docs(
+            function,
+            Tab_Documents_UnknownAuthors_listbox,
+            Tab_Documents_KnownAuthors_listbox
+        )
+)
+menu_batch_documents.add_command(
+    label="Clear and load Documents",
+    command=lambda function = "load_clear":
         load_save_docs(
             function,
             Tab_Documents_UnknownAuthors_listbox,
@@ -1889,6 +1896,10 @@ def change_style_live(themeString):
                 selectbackground = styles[style_choice]["accent_color_mid"]
             )
     change_style(topwindow)
+
+pipe_from.send("Starting GUI")
+pipe_from.send(0)
+p.join()
 
 #starts app
 topwindow.mainloop()
