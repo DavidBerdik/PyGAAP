@@ -1,6 +1,14 @@
 from abc import ABC, abstractmethod, abstractproperty
 import math
+
+from defer import return_value
 import backend.Histograms as histograms
+from sys import modules
+
+# external imports must follow this format to enable reloading of modules.
+try: modules.pop("extra.modules.analysis_method_example")
+except KeyError: pass
+from extra.modules import analysis_method_example
 
 # An abstract AnalysisMethod class.
 class AnalysisMethod(ABC):
@@ -108,3 +116,28 @@ class CrossEntropy(AnalysisMethod):
 	
 	def displayName():
 		return "Cross Entropy"
+
+
+class exampleExternalAM(AnalysisMethod):
+	_NoDistanceFunction_ = True
+	var = 1
+	_variable_options = {"var": {"default": 0, "type": "OptionMenu", "options": [1, 3, 5, 6]}}
+
+	def __init__(self):
+		self.module = analysis_method_example.analysis_method_example()
+		self.var = 1
+	
+	def unwrap(self):
+		return self.module
+
+	def train(self):
+		return None
+	
+	def analyze(self, unknownDocument):
+		return 0 
+	
+	def displayDescription():
+		return "Example external analysis method"
+
+	def displayName():
+		return "Example external AM"

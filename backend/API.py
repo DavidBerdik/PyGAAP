@@ -12,6 +12,7 @@ class API:
 	distanceFunctions = dict()
 	eventCulling = dict()
 	documents = []
+	test = 3
 
 	moduleTypeDict = {
 		"canonicizers": canonicizers,

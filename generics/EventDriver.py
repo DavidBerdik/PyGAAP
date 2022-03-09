@@ -2,9 +2,7 @@ from abc import ABC, abstractmethod
 from matplotlib.pyplot import eventplot
 from nltk import ngrams
 from nltk.tokenize import word_tokenize, sent_tokenize
-
-if "spacy" not in dir():
-	import spacy
+import spacy
 
 # An abstract EventDriver class.
 class EventDriver(ABC):
