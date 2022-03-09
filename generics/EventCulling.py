@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from sys import modules
 
 # An abstract Event Culling class.
 class EventCulling(ABC):

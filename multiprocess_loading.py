@@ -7,7 +7,7 @@ def receive_info(
         text_label
         ):
     if not pipe_connection.poll():
-        tkinter_user.after(50, lambda
+        tkinter_user.after(20, lambda
             p=pipe_connection,
             u=tkinter_user,
             t=text_label:

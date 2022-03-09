@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import dictances as distances
+from sys import modules
 
 # An abstract DistanceFunction class.
 class DistanceFunction(ABC):

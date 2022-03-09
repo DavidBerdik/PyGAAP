@@ -2,9 +2,8 @@ from abc import ABC, abstractmethod
 import re
 import numpy as np
 from sklearn.multiclass import OutputCodeClassifier
-
-if "spacy" not in dir():
-	import spacy
+import spacy
+from sys import modules
 
 # An abstract Canonicizer class.
 class Canonicizer(ABC):

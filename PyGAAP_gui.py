@@ -7,7 +7,7 @@
 # @ author: Michael Fang
 #
 # Style note: if-print checks using the GUI_debug variable
-# are condensed onto one line where possible.
+# are condensed into one line where possible.
 
 GUI_debug = 0
 # GUI debug level:
@@ -23,7 +23,10 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 import multiprocess_loading
+from sys import modules as sys_modules
+from sys import exc_info
 
+# open a loading window so the app doesn't appear frozen.
 pipe_from, pipe_to = Pipe(duplex=True)
 p = Process(target=multiprocess_loading.splash, args=(pipe_to,))
 p.start()
@@ -35,7 +38,6 @@ from backend.CSVIO import readDocument, readCorpusCSV, readExperimentCSV
 from backend.Document import Document
 from backend import CSVIO
 import constants
-from generics.DistanceFunction import DistanceFunction
 # Top-level window.
 topwindow = Tk()
 
@@ -294,11 +296,14 @@ def check_DF_listbox(lbAv, lbOp: Listbox):
     depending on whether the item selected in
     'Analysis Methods' allows using DFs."""
     if GUI_debug >= 3: print("check_DF_listbox()")
-    if backend_API.analysisMethods[lbAv.get(lbAv.curselection())]\
-            .__dict__.get("_NoDistanceFunction_") == True:
-        lbOp.config(state = DISABLED)
-    else:
-        lbOp.config(state = NORMAL)
+    try:
+        if backend_API.analysisMethods[lbAv.get(lbAv.curselection())]\
+                .__dict__.get("_NoDistanceFunction_") == True:
+            lbOp.config(state = DISABLED)
+        else:
+            lbOp.config(state = NORMAL)
+    except TclError:
+        return
 
 def find_description(desc: Text,
                      listbox: Listbox or ttk.Treeview,
@@ -1064,22 +1069,25 @@ def authorsList(authorList, mode):
     return None
 
 
-def reload_modules_button(frame: Frame, button_shown: list, button: Button = None):
+def reload_modules_button(frame: Frame, button_shown: list, destroy=False):
     """Hides or shows the reload modules button."""
     # function: "hide" or "show"
     if button_shown == []:
         show_button = \
             Button(frame,
-                    text = "Reload modules",
+                    text = "Reload all modules",
                     height = 2,
-                    command=todofunc
+                    command=reload_modules
             )
         show_button.pack(pady=100)
         button_shown.append(show_button)
+        frame.after(2000, lambda
+            f=frame, b=button_shown, d=True:reload_modules_button(f, b, d))
         return
-    else:
+    if destroy == True:
         button_shown[0].destroy()
         button_shown.clear()
+    return
 
 def load_save_docs(function: str,
                          unknown_docs_listbox: Listbox,
@@ -1112,10 +1120,7 @@ def load_save_docs(function: str,
         )
 
 def load_AAAC_problems(problem: str):
-
     # problem expects a letter string, ex: "A", "B", etc.
-
-
     ...
 
 
@@ -1563,7 +1568,7 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
     objects["selected_listboxes"][-1][1].pack(pady = (10, 5), side = TOP, anchor = NW)
 
     if parameters_content == "AnalysisMethods":
-        # for analysis methods, use two listboxes scrolled by the same scrollbar.
+        # for analysis methods, use a Treeview object to display selections.
         objects["selected_listboxes"][-1].append(ttk.Treeview(objects["selected_listboxes"][-1][0],
             columns = ("AM", "DF")))
         objects["selected_listboxes"][-1][2].column("#0", width = 0, stretch = NO)
@@ -1578,6 +1583,7 @@ def create_module_tab(tab_frame: Frame, available_content: list, parameters_cont
         objects["selected_listboxes"][-1][2].config(yscrollcommand = objects["selected_listboxes"][-1][3].set)
 
     else:
+        # for canonicizers, event cullers/drivers, use a Listbox to display selections.
         objects["selected_listboxes"][-1].append(Listbox(objects["selected_listboxes"][-1][0]))
         objects["selected_listboxes"][-1][2].pack(expand = True, fill = BOTH, side = LEFT)
 
@@ -1781,32 +1787,82 @@ generated_widgets['AnalysisMethods'] = create_module_tab(
     RP_listbox = Tab_RP_AnalysisMethods_Listbox,
     displayed_parameters = Tab_AnalysisMethods_parameters_displayed)
 
+def load_modules_to_GUI(startup=False):
 
-# adding items to listboxes from the backend_API.
-for canonicizer in sorted(list(backend_API.canonicizers.keys())):
-    generated_widgets["Canonicizers"]["available_listboxes"][0][2].insert(END, canonicizer)
-for driver in sorted(list(backend_API.eventDrivers.keys())):
-    generated_widgets["EventDrivers"]["available_listboxes"][0][2].insert(END, driver)
-for distancefunc in sorted(list(backend_API.distanceFunctions.keys())):
-    assert distancefunc != "NA", 'Distance Function cannot have a name of "NA" ' \
-    + '(Reserved for Analysis methods that do not use a distance function).\n' \
-    + 'Please check the file containing the definition of the distance function class, ' \
-    + 'most likely in or imported to DistanceFunction.py,\nand change the return of displayName().'
-    generated_widgets["AnalysisMethods"]["available_listboxes"][1][2].insert(END, distancefunc)
-for culling in sorted(list(backend_API.eventCulling.keys())):
-    generated_widgets["EventCulling"]["available_listboxes"][0][2].insert(END, culling)
-for method in sorted(list(backend_API.analysisMethods.keys())):
-    generated_widgets["AnalysisMethods"]["available_listboxes"][0][2].insert(END, method)
-#######
+    # first clear everthing in listboxes.
+    # the "DistanceFunctions" Treeview is in the "AnalysisMethods" tkinter frame.
+    for module_type in ["Canonicizers", "EventDrivers", "EventCulling"]:
+        generated_widgets[module_type]["available_listboxes"][0][2].delete(0, END)
+        generated_widgets[module_type]["selected_listboxes"][0][2].delete(0, END)
+    for listbox in [Tab_RP_Canonicizers_Listbox, Tab_RP_EventDrivers_Listbox, Tab_RP_EventCulling_Listbox]:
+        listbox.delete(0, END)
 
-# reload_button_shown=[]
-# topwindow.bind_all(
-#     "<Control_L>",
-#     lambda event,
-#         fr=generated_widgets["Canonicizers"]["parameters_frame"],
-#         b=reload_button_shown:
-#     reload_modules_button(fr, b)
-# )
+    Tab_RP_AnalysisMethods_Listbox.delete(*Tab_RP_AnalysisMethods_Listbox.get_children())
+    generated_widgets["AnalysisMethods"]["available_listboxes"][1][2].delete(0, END)
+    generated_widgets["AnalysisMethods"]["available_listboxes"][0][2].delete(0, END)
+    amdf = generated_widgets["AnalysisMethods"]["selected_listboxes"][0][2]
+    amdf.delete(*amdf.get_children())
+
+    try:
+        # adding items to listboxes from the backend_API.
+        for canonicizer in sorted(list(backend_API.canonicizers.keys())):
+            generated_widgets["Canonicizers"]["available_listboxes"][0][2].insert(END, canonicizer)
+        for driver in sorted(list(backend_API.eventDrivers.keys())):
+            generated_widgets["EventDrivers"]["available_listboxes"][0][2].insert(END, driver)
+        for distancefunc in sorted(list(backend_API.distanceFunctions.keys())):
+            assert distancefunc != "NA", 'Distance Function cannot have a name of "NA" ' \
+            + '(Reserved for Analysis methods that do not use a distance function).\n' \
+            + 'Please check the file containing the definition of the distance function class, ' \
+            + 'most likely in or imported to DistanceFunction.py,\nand change the return of displayName().'
+            generated_widgets["AnalysisMethods"]["available_listboxes"][1][2].insert(END, distancefunc)
+        for culling in sorted(list(backend_API.eventCulling.keys())):
+            generated_widgets["EventCulling"]["available_listboxes"][0][2].insert(END, culling)
+        for method in sorted(list(backend_API.analysisMethods.keys())):
+            generated_widgets["AnalysisMethods"]["available_listboxes"][0][2].insert(END, method)
+        if startup == False: status_update("Modules reloaded")
+        return
+    except Exception as e:
+        error_window = Toplevel()
+        error_window.geometry(dpi_process_window_geometry_finished)
+        error_window.title("Error while loading modules")
+        error_text_field = Text(error_window)
+        error_text_field.pack(fill=BOTH, expand=True)
+        
+        error_text = "An error occurred while loading the modules:\n\n"
+        error_text += str(exc_info()[0]) + "\n" + str(exc_info()[1]) + "\n" + str(exc_info()[2].tb_frame.f_code)
+        error_text += "\n\nDevelopers: you can reload the modules by going to the "\
+            + "Canonicizers tab, pressing the right ctrl key, and clicking the "\
+            + "\"Reload all modules\" button."
+        error_text_field.insert(END, error_text)
+        error_window.after(1200, error_window.lift)
+        if startup == False: status_update("Error while loading modules, see pop-up window.")
+        #exc_type, exc_obj, exc_tb = exc_info()
+        return
+    #######
+
+load_modules_to_GUI(True)
+
+def reload_modules():
+    global backend_API
+    sys_modules.pop("backend.API")
+    sys_modules.pop("generics.AnalysisMethod")
+    sys_modules.pop("generics.Canonicizer")
+    sys_modules.pop("generics.DistanceFunction")
+    sys_modules.pop("generics.EventCulling")
+    sys_modules.pop("generics.EventDriver")
+    from backend.API import API
+    backend_API = API("place-holder")
+    load_modules_to_GUI()
+
+
+reload_button_shown=[]
+topwindow.bind_all(
+    "<Control_R>",
+    lambda event,
+        fr=generated_widgets["Canonicizers"]["parameters_frame"],
+        b=reload_button_shown:
+    reload_modules_button(fr, b)
+)
 
 if GUI_debug >= 2:
     _ = 0
