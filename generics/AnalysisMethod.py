@@ -1,14 +1,18 @@
 from abc import ABC, abstractmethod, abstractproperty
 import math
 
-from defer import return_value
 import backend.Histograms as histograms
-from sys import modules
+from importlib import import_module
 
-# external imports must follow this format to enable reloading of modules.
-try: modules.pop("extra.modules.analysis_method_example")
-except KeyError: pass
-from extra.modules import analysis_method_example
+from extra.modules.analysis_method_example import analysis_method_example
+
+external_modules = {
+	"extra.modules.analysis_method_example": None,
+	"extra.modules.am_sklearn_naive_bayes": None,
+}
+# external imports must use "backend.import_external"
+for mod in external_modules:
+	external_modules[mod] = import_module(mod)
 
 # An abstract AnalysisMethod class.
 class AnalysisMethod(ABC):
@@ -121,16 +125,16 @@ class CrossEntropy(AnalysisMethod):
 class exampleExternalAM(AnalysisMethod):
 	_NoDistanceFunction_ = True
 	var = 1
-	_variable_options = {"var": {"default": 0, "type": "OptionMenu", "options": [1, 3, 5, 6]}}
+	_variable_options = {"var": {"default": 0, "type": "OptionMenu", "options": [1, 3, 5, 6, 10, 12]}}
 
 	def __init__(self):
-		self.module = analysis_method_example.analysis_method_example()
+		self._module = external_modules["extra.modules.analysis_method_example"].analysis_method_example()
 		self.var = 1
-	
-	def unwrap(self):
-		return self.module
 
-	def train(self):
+	def unwrap(self):
+		return self._module
+
+	def train(self, known_docs):
 		return None
 	
 	def analyze(self, unknownDocument):
@@ -141,3 +145,30 @@ class exampleExternalAM(AnalysisMethod):
 
 	def displayName():
 		return "Example external AM"
+
+# class sklearnNaiveBayes(AnalysisMethod):
+# 	_NoDistanceFunction_ = True
+# 	features_limit = 1000
+# 	_variable_options = {"features_limit": {"default": 0, "type": "OptionMenu", "options": [1000, 2000, 3000, 4000]}}
+
+# 	def __init_(self):
+# 		self._module = external_modules["extra.modules.am_sklearn_naive_bayes"].sklearn_naive_bayes()
+
+# 	def unwrap(self):
+# 		return self._module
+	
+# 	def train(self, feature_set):
+# 		self._module.max_features = self.features_limit
+# 		results = self._module.train(feature_set)
+	
+# 	def analyze(self, unknown_doc_feature_set):
+# 		self._module.max_features = self.features_limit
+# 		results = self._module.predict(unknown_doc_feature_set)
+	
+# 	def displayDescription():
+# 		return "Naive Bayes classifier with CountVectorizer using scikit-learn"
+	
+# 	def displayName():
+# 		return "Naive Bayes (scikit-learn)"
+
+

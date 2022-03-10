@@ -3,6 +3,13 @@ from matplotlib.pyplot import eventplot
 from nltk import ngrams
 from nltk.tokenize import word_tokenize, sent_tokenize
 import spacy
+from importlib import import_module
+
+external_modules = {}
+# external imports must use "backend.import_external"
+for mod in external_modules:
+	external_modules[mod] = import_module(mod)
+
 
 # An abstract EventDriver class.
 class EventDriver(ABC):
@@ -196,10 +203,6 @@ class SpacyLemmatize(EventDriver):
 	# class var.
 	_SpacyLemmatize_lang_pipeline = None
 
-	def __init__(self):
-		# if "spacy" not in dir():
-		# 	import spacy
-		return
 		
 	def displayName():
 		return "Lemmatize (Spacy)"

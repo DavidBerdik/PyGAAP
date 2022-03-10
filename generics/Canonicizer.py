@@ -3,7 +3,12 @@ import re
 import numpy as np
 from sklearn.multiclass import OutputCodeClassifier
 import spacy
-from sys import modules
+from importlib import import_module
+
+external_modules = {}
+# external imports must use "backend.import_external"
+for mod in external_modules:
+	external_modules[mod] = import_module(mod)
 
 # An abstract Canonicizer class.
 class Canonicizer(ABC):
@@ -171,8 +176,6 @@ class CangjieConvert(Canonicizer):
 		_SpacyLemmatize_lang_pipeline = None
 
 		def __init__(self):
-			# if "spacy" not in dir():
-			# 	import spacy
 			return
 			
 		def displayName():
@@ -183,9 +186,9 @@ class CangjieConvert(Canonicizer):
 		
 		def process(self, procText):
 			"""Lemmatize using spacy"""
-
-			if Canonicizer._spacy_lang_pipeline == None:
-				Canonicizer._spacy_lang_pipeline = spacy.load(
+			print(self._SpacyLemmatize_module_dict)
+			if Canonicizer._SpacyLemmatize_lang_pipeline == None:
+				Canonicizer._SpacyLemmatize_lang_pipeline = spacy.load(
 					self._SpacyLemmatize_module_dict.get(
 						self._global_parameters["language"],
 						"xx_ent_wiki_sm"

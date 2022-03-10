@@ -25,11 +25,13 @@ from tkinter.filedialog import askopenfilename, asksaveasfilename
 import multiprocess_loading
 from sys import modules as sys_modules
 from sys import exc_info
+from sys import platform
 
 # open a loading window so the app doesn't appear frozen.
 pipe_from, pipe_to = Pipe(duplex=True)
-p = Process(target=multiprocess_loading.splash, args=(pipe_to,))
-p.start()
+if platform != "win32":
+    p = Process(target=multiprocess_loading.splash, args=(pipe_to,))
+    p.start()
 pipe_from.send("Loading API")
 
 # LOCAL IMPORTS
@@ -63,13 +65,15 @@ if dpi > 72:
     if GUI_debug >= 2: print("1x UI scale")
     dpi_setting = 1
     topwindow.geometry("1000x670")
-    
 else:
     if GUI_debug >= 2: print("2x UI scale")
     dpi_setting = 2
     topwindow.geometry("2000x1150")
-    
 
+if platform == "win32":
+    dpi_setting = 1
+    topwindow.geometry("1000x670")
+    
 if dpi_setting == None:
     raise ValueError("Unknown DPI setting %s."% (str(dpi_setting)))
 
@@ -390,25 +394,6 @@ def find_parameters(param_frame: Frame,
         print("find_parameters(clear = %s), displayed_params list length: %s."
         %(len(displayed_params), clear))
 
-    list_of_params = {
-        "first": [{
-            "options": range(1, 20),
-            "default": 1,
-            "type": "Entry",
-            "label": "first, param 1"
-        },{
-            "options": ["option1", "option2"],
-            "default": 0,
-            "type": "OptionMenu",
-            "label": "first, param 2"
-        }],
-        "fifth": [{
-            "options": range(0, 10),
-            "default": 0,
-            "type": "Entry",
-            "label": "fifth, param 1"}
-        ]
-    }
 
     module_type = options.get("module_type")
     # get dict of modules in the selected UI page.
@@ -1081,7 +1066,7 @@ def reload_modules_button(frame: Frame, button_shown: list, destroy=False):
             )
         show_button.pack(pady=100)
         button_shown.append(show_button)
-        frame.after(2000, lambda
+        frame.after(4000, lambda
             f=frame, b=button_shown, d=True:reload_modules_button(f, b, d))
         return
     if destroy == True:
@@ -1480,6 +1465,7 @@ Tab_RP_Process_Button.config(\
 def create_module_tab(tab_frame: Frame, available_content: list, parameters_content = None, **extra):
     """
     creates a tab of available-buttons-selected-description tab.
+    See PyGAAP_developer_manual.md for list of major widgets/frames.
     tab_frame: the top-level frame in the notebook tab
     available_content: list of label texts for the available modules to go in.
     button_functions: list of buttons in the middle frame
@@ -1844,12 +1830,15 @@ load_modules_to_GUI(True)
 
 def reload_modules():
     global backend_API
+    for module_type in [
+        "generics.AnalysisMethod", "generics.Canonicizer", "generics.DistanceFunction",
+        "generics.EventCulling", "generics.EventDriver"
+    ]:
+        for external_module in sys_modules[module_type].external_modules:
+            sys_modules.pop(external_module)
+        sys_modules.pop(module_type)
     sys_modules.pop("backend.API")
-    sys_modules.pop("generics.AnalysisMethod")
-    sys_modules.pop("generics.Canonicizer")
-    sys_modules.pop("generics.DistanceFunction")
-    sys_modules.pop("generics.EventCulling")
-    sys_modules.pop("generics.EventDriver")
+
     from backend.API import API
     backend_API = API("place-holder")
     load_modules_to_GUI()
@@ -1953,9 +1942,11 @@ def change_style_live(themeString):
             )
     change_style(topwindow)
 
+if platform != "win32":
+    pass
+    #p.join()
 pipe_from.send("Starting GUI")
 pipe_from.send(0)
-p.join()
 
 #starts app
 topwindow.mainloop()

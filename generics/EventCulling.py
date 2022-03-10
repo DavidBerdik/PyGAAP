@@ -1,5 +1,12 @@
 from abc import ABC, abstractmethod
-from sys import modules
+from importlib import import_module
+
+external_modules = {}
+# external imports must use "backend.import_external"
+for mod in external_modules:
+	external_modules[mod] = import_module(mod)
+
+
 
 # An abstract Event Culling class.
 class EventCulling(ABC):
@@ -29,8 +36,10 @@ class EventCulling(ABC):
 class EmptyEventCuller(EventCulling):
 	test_param1=2
 	test_param2=14
+	test_param3="op1"
 	_variable_options={"test_param1": {"options": list(range(2, 8)), "default": 0, "type": "OptionMenu"},
-					   "test_param2": {"options": list(range(10, 15)), "default": 4, "type": "OptionMenu"}}
+					   "test_param2": {"options": list(range(10, 15)), "default": 4, "type": "OptionMenu"},
+					   "test_param3": {"options": ["op1", "op2"], "default": 0, "type": "OptionMenu"}}
 	
 	def process(self, procText):
 		pass

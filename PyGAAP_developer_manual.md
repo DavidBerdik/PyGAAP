@@ -10,6 +10,7 @@ See https://evllabs.github.io/JGAAP/
    2. [Function Calls](#nested_funcs)
 3. [Adding a new module](#new_mod)
    1. [Classs variables](#class_variables)
+   1. [Class initialization](#class_init)
    2. [Class functions](#class_functions)
    3. [Reload modules while PyGAAP is running](#live_reload)
 
@@ -102,6 +103,7 @@ Class variables are declared within the class definition.
 Each user parameter is a class variable exposed to the GUI. These variables must also have corresponding entries in ```_variable_options```, and their names cannot begin with a "```_```".
 Conversely, to hide a class variable from the GUI, prefix the name with a "```_```".
 
+- `_global_parameters` API parameters to be passed to all modules, like `language`.
 - ```_variable_options``` (dictionary) lists the options, GUI type, and the default values of variables. The variables' names are the keys and their attributes are dicts. Each dict for a variable must have ```"options"``` for range of available choices, ```"type"``` for the GUI widget type (currently only ```OptionMenu``` is supported), and ```"default"``` for the default value _**as an index of the ```"options"``` list**_ (for the example below, the default corresponds to ```0```, which picks the item with ```0``` index in the ```"options"``` list as the default value, i.e. the default **value** is ```3```).\
 Example:
 ```{"variable_1": {"options": list(range(3, 10)), "type": OptionMenu, "default": 0}}```
@@ -111,18 +113,21 @@ Example:
 - ```_NoDistanceFunction_``` (boolean) if an anlysis method does not allow a distance function to be set, add this and set it to ```True```. It's okay to omit this variable if it would be set to ```False```.
 - ```_multiprocessing_score``` (integer) the "time-consumingness" of an analysis method. Default is 1 (or if omitted). The score for all analysis methods will be summed before processing to determine if multi-processing is needed. Set a higher score if a method usually takes particularly long.
 
+## <span style="color:#aaeeff"> Class initialization</span> <a name="class_init"></a>
+The `__init__()` method for module classes contains initialization for required parameters. These are handled in the abstract (base) class at the top of the generic module files (`~/generics/...`). If a separate init method is needed for a module, the init function for the abstract class should be called as well.
+
 ## <span style="color:#aaeeff"> Class functions</span> <a name="class_functions"></a>
 - All modules are required to have ```displayName()``` and ```displayDescription()```.
-   - ```displayName()``` (nothing $\rightarrow$ String) returns the name of the module. Note that the name of a distance function cannot be ```NA```, which is reserved for a place-holder for analysis methods that don't use distance functions.
-   - ```displayDescription()``` (nothing $\rightarrow$ String) returns a description of the module.
+   - ```displayName()``` (nothing → String) returns the name of the module. Note that the name of a distance function cannot be ```NA```, which is reserved for a place-holder for analysis methods that don't use distance functions.
+   - ```displayDescription()``` (nothing → String) returns a description of the module.
 
 > ❗ Make sure to **return** and not (just) print the names and descriptions.
 
 Functions by types of module:
 - Canonicizers:
-   - ```process()``` (String $\rightarrow$ String) 
+   - ```process()``` (String → String) 
 - Event drivers:
-   - ```CreateEventSet()``` (String $\rightarrow$ List)
+   - ```CreateEventSet()``` (String → List)
    - ```setParams()```
 - Event cullers:
    - to be determined
