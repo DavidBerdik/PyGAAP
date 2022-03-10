@@ -1,6 +1,11 @@
 from abc import ABC, abstractmethod
 import dictances as distances
-from sys import modules
+from importlib import import_module
+
+external_modules = {}
+# external imports must use "backend.import_external"
+for mod in external_modules:
+	external_modules[mod] = import_module(mod)
 
 # An abstract DistanceFunction class.
 class DistanceFunction(ABC):

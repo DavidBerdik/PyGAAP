@@ -11,7 +11,7 @@ PyGAAP currently contains only a small subset of features from JGAAP and most fe
 * PyGAAP does not yet support feature set culling
 
 ## How to Contribute
-To contribute to PyGAAP, simply fork the repository, create a new branch, make your desired changes, and submit a pull request. Additionally, please consider opening an issue on this repository with an explanation of your planned contribution so that we may track who is working on what.
+To contribute to PyGAAP, simply fork the repository, create a new branch, make your desired changes, and submit a pull request. While adding a new module, you may find the [developer manual](/PyGAAP_developer_manual.md) useful. Additionally, please consider opening an issue on this repository with an explanation of your planned contribution so that we may track who is working on what.
 
 ## How to Use
 1. Clone the PyGAAP Git repository.
@@ -20,7 +20,8 @@ To contribute to PyGAAP, simply fork the repository, create a new branch, make y
     1. `pip install -r requirements.txt`
     2. `python -m pip install -r requirements.txt`
 	3. `pip3 install -r requirements.txt`
-4. Run `python PyGAAP.py` to get help output.
+    4. Run `python PyGAAP.py` to get help output with the command-line interface, or,\
+    Run `python3 PyGAAP_gui.py` to start the graphical interface.
 
 ## Support
 If you are having issues with PyGAAP that require support, please open an issue on this repository. As a reminder, PyGAAP is in early stages of development and should not be used for serious text analysis. If you require stable text analysis software, please use [JGAAP](https://github.com/evllabs/JGAAP) instead.
