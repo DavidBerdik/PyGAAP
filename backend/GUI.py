@@ -716,7 +716,7 @@ def displayAbout():
     About_page.title("About PyGAAP")
     About_page.geometry(dpi_about_page_geometry)
     About_page.resizable(False, False)
-    about_page_logosource = PhotoImage(file = "./logo.png")
+    about_page_logosource = PhotoImage(file = "./res/logo.png")
     about_page_logosource = about_page_logosource.subsample(2, 2)
     AboutPage_logo = Label(About_page, image = about_page_logosource)
     AboutPage_logo.pack(side = "top", fill = "both", expand = "yes")
