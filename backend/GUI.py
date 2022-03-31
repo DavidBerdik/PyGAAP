@@ -22,7 +22,7 @@ from datetime import datetime
 from tkinter import *
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
-import multiprocess_loading
+import util.MultiprocessLoading as MultiprocessLoading
 from sys import modules as sys_modules
 from sys import exc_info
 from sys import platform
@@ -30,7 +30,7 @@ from sys import platform
 # open a loading window so the app doesn't appear frozen.
 pipe_from, pipe_to = Pipe(duplex=True)
 if platform != "win32":
-    p = Process(target=multiprocess_loading.splash, args=(pipe_to,))
+    p = Process(target=MultiprocessLoading.splash, args=(pipe_to,))
     p.start()
 pipe_from.send("Loading API")
 
@@ -39,7 +39,7 @@ from backend.API import API
 from backend.CSVIO import readDocument, readCorpusCSV, readExperimentCSV
 from backend.Document import Document
 from backend import CSVIO
-import constants
+import Constants
 # Top-level window.
 topwindow = Tk()
 
@@ -722,7 +722,7 @@ def displayAbout():
     AboutPage_logo.pack(side = "top", fill = "both", expand = "yes")
 
     textinfo = "THIS IS AN EARLY VERSION OF PyGAAP GUI.\n\
-    Version date: " + constants.versiondate + "\n\
+    Version date: " + Constants.versiondate + "\n\
     PyGAAP is a Python port of JGAAP,\n\
     Java Graphical Authorship Attribution Program.\n\
     This is an open-source tool developed by the EVL Lab\n\
@@ -1888,7 +1888,7 @@ finish_button.grid(row = 0, column = 4, sticky = 'swen')
 statusbar = Frame(topwindow, bd = 1, relief = SUNKEN)
 statusbar.grid(row = 2, sticky = "swe")
 
-welcome_message = "By David Berdik and Michael Fang. Version date: %s." %(constants.versiondate)
+welcome_message = "By David Berdik and Michael Fang. Version date: %s." %(Constants.versiondate)
 statusbar_label = Label(statusbar, text = welcome_message, anchor = W)
 statusbar_label.pack(anchor = "e")
 statusbar_label.after(3000, lambda:status_update("", welcome_message))
