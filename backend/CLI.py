@@ -10,14 +10,6 @@ gui = False
 
 def cliMain():
 	'''Main function for the PyGAAP CLI'''
-	if len(sys.argv) >= 2:
-		_parse_args()
-	else:
-		print("Starting GUI")
-		gui = True
-		import PyGAAP_gui
-		return None
-		
 	args = _parse_args()
 	
 	# If a CSV file has been specified, process it.

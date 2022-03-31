@@ -49,9 +49,9 @@ try:topwindow.tk.call(
         'wm',
         'iconphoto',
         topwindow._w,
-        PhotoImage(file = './applogo.png'))
+        PhotoImage(file = './res/icon.png'))
 except TclError:
-    print("Error: applogo.png not found.")
+    print("Error: icon.png not found.")
 
 topwindow.rowconfigure(0, weight = 1)
 topwindow.rowconfigure(1, weight = 0, minsize = 50)
