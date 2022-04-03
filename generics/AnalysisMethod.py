@@ -27,6 +27,7 @@ class AnalysisMethod(ABC):
 		except:
 			self._variable_options = dict()	
 		self._global_parameters = self._global_parameters
+
 	@abstractmethod
 	def train(self, knownDocuments):
 		'''Train a model on the knownDocuments.'''

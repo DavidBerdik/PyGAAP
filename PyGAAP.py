@@ -2,10 +2,11 @@
 import sys
 
 from backend.CLI import cliMain
+from Constants import version
 
 def main():
 	if len(sys.argv) >= 2:	
-		print("PyGAAP v1.0.0 alpha 1\nby David Berdik")
+		print("PyGAAP v" + version + "\nby David Berdik")
 		cliMain()
 	else:
 		import backend.GUI
